@@ -25,7 +25,7 @@ const status = item.status as ItemStatus;
 >
   <div @click="showModal = true">
     <img 
-      src={item.photo || 'https://via.placeholder.com/300x200?text=' + item.name} 
+      src={item.image || 'https://via.placeholder.com/300x200?text=' + item.name} 
       alt={item.name} 
       class="w-full h-40 object-cover rounded-md mb-3"
     />
@@ -59,7 +59,7 @@ const status = item.status as ItemStatus;
       </div>
       
       <img 
-        src={item.photo || 'https://via.placeholder.com/600x300?text=' + item.name} 
+        src={item.image || 'https://via.placeholder.com/600x300?text=' + item.name} 
         alt={item.name} 
         class="w-full h-64 object-cover rounded-md mb-4"
       />

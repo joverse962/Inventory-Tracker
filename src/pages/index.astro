@@ -1,212 +1,412 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import ItemCard from '../components/ItemCard.astro';
-import FilterBar from '../components/FilterBar.astro';
-import BarcodeScanner from '../components/BarcodeScanner.astro';
-
-// Sample inventory data with components/sets
-const items = [
-  { 
-    id: 1, 
-    name: 'Dell Laptop XPS 15', 
-    status: 'available', 
-    photo: 'https://images.unsplash.com/photo-1588872657578-7efd1f1555ed?w=400',
-    currentUser: null,
-    location: 'Warehouse A',
-    category: 'Electronics',
-    description: 'High-performance laptop with 16GB RAM and 512GB SSD',
-    components: [
-      { name: 'Charger', quantity: 1 },
-      { name: 'Mouse', quantity: 1 },
-      { name: 'Carrying Case', quantity: 1 }
-    ]
-  },
-  { 
-    id: 2, 
-    name: 'Epson Projector', 
-    status: 'borrowed', 
-    photo: 'https://images.unsplash.com/photo-1559827260-dc66d52bef19?w=400',
-    currentUser: 'John Doe',
-    location: 'Office Floor 1',
-    category: 'Electronics',
-    description: '4K projector with HDMI and wireless connectivity',
-    components: [
-      { name: 'Power Cable', quantity: 1 },
-      { name: 'HDMI Cable', quantity: 1 },
-      { name: 'Remote Control', quantity: 1 }
-    ]
-  },
-  { 
-    id: 3, 
-    name: 'Mechanical Keyboard', 
-    status: 'used', 
-    photo: 'https://images.unsplash.com/photo-1587829741301-dc798b83add3?w=400',
-    currentUser: null,
-    location: 'Office Floor 2',
-    category: 'Office Supplies',
-    description: 'RGB mechanical keyboard with blue switches'
-  },
-  { 
-    id: 4, 
-    name: 'HP Printer LaserJet', 
-    status: 'waste', 
-    photo: 'https://images.unsplash.com/photo-1612815154858-60aa4c59eaa6?w=400',
-    currentUser: null,
-    location: 'Warehouse B',
-    category: 'Electronics',
-    description: 'Old printer - marked for disposal'
-  },
-  { 
-    id: 5, 
-    name: 'Office Desk', 
-    status: 'available', 
-    photo: 'https://images.unsplash.com/photo-1518455027359-f3f8164ba6bd?w=400',
-    currentUser: null,
-    location: 'Warehouse A',
-    category: 'Furniture',
-    description: 'Adjustable standing desk'
-  },
-  { 
-    id: 6, 
-    name: 'Ergonomic Chair', 
-    status: 'borrowed', 
-    photo: 'https://images.unsplash.com/photo-1580480055273-228ff5388ef8?w=400',
-    currentUser: 'Jane Smith',
-    location: 'Office Floor 1',
-    category: 'Furniture',
-    description: 'Herman Miller Aeron chair'
-  },
-  { 
-    id: 7, 
-    name: 'Tool Set', 
-    status: 'available', 
-    photo: 'https://images.unsplash.com/photo-1530124566582-a618bc2615dc?w=400',
-    currentUser: null,
-    location: 'Warehouse B',
-    category: 'Tools',
-    description: 'Complete screwdriver and wrench set',
-    components: [
-      { name: 'Screwdrivers', quantity: 8 },
-      { name: 'Wrenches', quantity: 6 },
-      { name: 'Pliers', quantity: 3 },
-      { name: 'Tool Box', quantity: 1 }
-    ]
-  },
-  { 
-    id: 8, 
-    name: 'Whiteboard', 
-    status: 'used', 
-    photo: 'https://images.unsplash.com/photo-1611532736597-de2d4265fba3?w=400',
-    currentUser: null,
-    location: 'Office Floor 2',
-    category: 'Office Supplies',
-    description: 'Large whiteboard with markers'
-  },
-];
-
-// Get stats
-const stats = {
-  total: items.length,
-  available: items.filter(i => i.status === 'available').length,
-  borrowed: items.filter(i => i.status === 'borrowed').length,
-  used: items.filter(i => i.status === 'used').length,
-  waste: items.filter(i => i.status === 'waste').length,
-};
 ---
 
-<BaseLayout>
-  <div class="mb-6 flex justify-between items-center">
-    <h2 class="text-3xl font-bold">📦 Inventory Dashboard</h2>
-    <BarcodeScanner />
+<BaseLayout title="Dashboard - Inventory Tracker">
+  <div class="p-6">
+    <!-- Header with User Info -->
+    <div class="flex justify-between items-center mb-6">
+      <div>
+        <h1 class="text-3xl font-bold text-gray-900">Inventory Dashboard</h1>
+        <p id="userWelcome" class="text-gray-600 mt-1">Welcome back!</p>
+      </div>
+      <button
+        id="logoutBtn"
+        class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
+      >
+        Logout
+      </button>
+    </div>
+
+    <!-- Statistics -->
+    <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6">
+      <div class="bg-white p-6 rounded-lg shadow">
+        <div class="text-gray-500 text-sm">Total Items</div>
+        <div id="totalItems" class="text-3xl font-bold text-gray-900">0</div>
+      </div>
+      <div class="bg-white p-6 rounded-lg shadow">
+        <div class="text-gray-500 text-sm">Available</div>
+        <div id="availableItems" class="text-3xl font-bold text-green-600">0</div>
+      </div>
+      <div class="bg-white p-6 rounded-lg shadow">
+        <div class="text-gray-500 text-sm">Borrowed</div>
+        <div id="borrowedItems" class="text-3xl font-bold text-yellow-600">0</div>
+      </div>
+      <div class="bg-white p-6 rounded-lg shadow">
+        <div class="text-gray-500 text-sm">In Use</div>
+        <div id="usedItems" class="text-3xl font-bold text-gray-600">0</div>
+      </div>
+    </div>
+
+    <!-- Filter Bar -->
+    <div class="bg-white p-4 rounded-lg shadow mb-6">
+      <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="Search items..."
+          class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+        />
+        <select id="statusFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+          <option value="">All Statuses</option>
+          <option value="available">Available</option>
+          <option value="borrowed">Borrowed</option>
+          <option value="used">In Use</option>
+          <option value="waste">Waste</option>
+        </select>
+        <input
+          type="text"
+          id="categoryFilter"
+          placeholder="Category..."
+          class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+        />
+        <input
+          type="text"
+          id="locationFilter"
+          placeholder="Location..."
+          class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+        />
+      </div>
+    </div>
+
+    <!-- Loading State -->
+    <div id="loadingState" class="text-center py-12">
+      <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <p class="mt-4 text-gray-600">Loading items...</p>
+    </div>
+
+    <!-- Error State -->
+    <div id="errorState" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6"></div>
+
+    <!-- Empty State -->
+    <div id="emptyState" class="hidden text-center py-12">
+      <svg class="mx-auto h-24 w-24 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+      </svg>
+      <h3 class="mt-4 text-lg font-medium text-gray-900">No items found</h3>
+      <p class="mt-2 text-gray-600">Get started by adding your first inventory item.</p>
+      <a href="/add-item" class="mt-4 inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+        Add Item
+      </a>
+    </div>
+
+    <!-- Items Grid -->
+    <div id="itemsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden">
+      <!-- Items will be inserted here -->
+    </div>
   </div>
 
-  <!-- Stats Cards -->
-  <div class="grid grid-cols-2 md:grid-cols-5 gap-4 mb-6">
-    <div class="bg-white p-4 rounded-lg shadow">
-      <p class="text-gray-500 text-sm">Total Items</p>
-      <p class="text-2xl font-bold">{stats.total}</p>
-    </div>
-    <div class="bg-green-100 p-4 rounded-lg shadow">
-      <p class="text-green-700 text-sm">✅ Available</p>
-      <p class="text-2xl font-bold text-green-700">{stats.available}</p>
-    </div>
-    <div class="bg-yellow-100 p-4 rounded-lg shadow">
-      <p class="text-yellow-700 text-sm">📤 Borrowed</p>
-      <p class="text-2xl font-bold text-yellow-700">{stats.borrowed}</p>
-    </div>
-    <div class="bg-gray-100 p-4 rounded-lg shadow">
-      <p class="text-gray-700 text-sm">🔧 Used</p>
-      <p class="text-2xl font-bold text-gray-700">{stats.used}</p>
-    </div>
-    <div class="bg-red-100 p-4 rounded-lg shadow">
-      <p class="text-red-700 text-sm">🗑️ Waste</p>
-      <p class="text-2xl font-bold text-red-700">{stats.waste}</p>
+  <!-- Item Modal -->
+  <div id="itemModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+      <div class="p-6">
+        <div class="flex justify-between items-start mb-4">
+          <h2 id="modalTitle" class="text-2xl font-bold text-gray-900"></h2>
+          <button id="closeModal" class="text-gray-400 hover:text-gray-600">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <div id="modalContent">
+          <!-- Modal content will be inserted here -->
+        </div>
+      </div>
     </div>
   </div>
-
-  <!-- Filter Bar -->
-  <FilterBar />
-
-  <!-- Items Grid -->
-  <div id="items-grid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-    {items.map(item => <ItemCard item={item} />)}
-  </div>
-
-  <!-- No results message -->
-  <div id="no-results" class="hidden text-center py-12">
-    <p class="text-gray-500 text-lg">No items found matching your filters</p>
-    <button onclick="resetFilters()" class="mt-4 text-blue-500 hover:text-blue-700">Clear all filters</button>
-  </div>
-
-  <!-- Filter Script -->
-  <script is:inline define:vars={{ items }}>
-    const allItems = items;
-    
-    window.filterItems = function() {
-      const search = document.querySelector('[x-model="search"]')?.value?.toLowerCase() || '';
-      const statusFilter = document.querySelector('[x-model="statusFilter"]')?.value || 'all';
-      const categoryFilter = document.querySelector('[x-model="categoryFilter"]')?.value || 'all';
-      const locationFilter = document.querySelector('[x-model="locationFilter"]')?.value || 'all';
-      
-      const filtered = allItems.filter(item => {
-        const matchesSearch = !search || 
-          item.name.toLowerCase().includes(search) ||
-          (item.description && item.description.toLowerCase().includes(search)) ||
-          (item.currentUser && item.currentUser.toLowerCase().includes(search));
-        
-        const matchesStatus = statusFilter === 'all' || item.status === statusFilter;
-        const matchesCategory = categoryFilter === 'all' || item.category === categoryFilter;
-        const matchesLocation = locationFilter === 'all' || item.location === locationFilter;
-        
-        return matchesSearch && matchesStatus && matchesCategory && matchesLocation;
-      });
-      
-      // Show/hide items
-      const grid = document.getElementById('items-grid');
-      const noResults = document.getElementById('no-results');
-      const cards = grid.querySelectorAll('[x-data]');
-      
-      let visibleCount = 0;
-      cards.forEach((card, index) => {
-        const shouldShow = filtered.some(item => item.id === allItems[index].id);
-        card.style.display = shouldShow ? 'block' : 'none';
-        if (shouldShow) visibleCount++;
-      });
-      
-      // Show/hide no results message
-      if (visibleCount === 0) {
-        noResults.classList.remove('hidden');
-      } else {
-        noResults.classList.add('hidden');
-      }
-    };
-    
-    window.resetFilters = function() {
-      document.querySelector('[x-model="search"]').value = '';
-      document.querySelector('[x-model="statusFilter"]').value = 'all';
-      document.querySelector('[x-model="categoryFilter"]').value = 'all';
-      document.querySelector('[x-model="locationFilter"]').value = 'all';
-      window.filterItems();
-    };
-  </script>
 </BaseLayout>
+
+<script>
+  import { checkAuth } from '../lib/middleware';
+  import { itemsAPI, logout, getCurrentUser } from '../lib/api';
+
+  // Check authentication
+  checkAuth();
+
+  let allItems: any[] = [];
+  let currentFilters = {
+    search: '',
+    status: '',
+    category: '',
+    location: '',
+  };
+
+  // Get current user and display welcome message
+  const user = getCurrentUser();
+  const userWelcome = document.getElementById('userWelcome');
+  if (userWelcome && user) {
+    userWelcome.textContent = `Welcome back, ${user.name}!`;
+  }
+
+  // Logout handler
+  document.getElementById('logoutBtn')?.addEventListener('click', logout);
+
+  // Fetch items
+  async function fetchItems() {
+    const loadingState = document.getElementById('loadingState');
+    const errorState = document.getElementById('errorState');
+    const emptyState = document.getElementById('emptyState');
+    const itemsGrid = document.getElementById('itemsGrid');
+
+    try {
+      loadingState?.classList.remove('hidden');
+      errorState?.classList.add('hidden');
+      emptyState?.classList.add('hidden');
+      itemsGrid?.classList.add('hidden');
+
+      const data = await itemsAPI.getAll(currentFilters);
+      allItems = data.items || [];
+      
+      console.log('[Dashboard] Fetched items:', allItems.length);
+      if (allItems.length > 0) {
+        console.log('[Dashboard] First item sample:', {
+          name: allItems[0].name,
+          image: allItems[0].image,
+          hasImage: !!allItems[0].image
+        });
+      }
+
+      loadingState?.classList.add('hidden');
+
+      if (allItems.length === 0) {
+        emptyState?.classList.remove('hidden');
+      } else {
+        itemsGrid?.classList.remove('hidden');
+        renderItems();
+      }
+
+      updateStatistics();
+    } catch (error: any) {
+      loadingState?.classList.add('hidden');
+      if (errorState) {
+        errorState.textContent = error.message || 'Failed to load items';
+        errorState.classList.remove('hidden');
+      }
+    }
+  }
+
+  // Render items
+  function renderItems() {
+    const itemsGrid = document.getElementById('itemsGrid');
+    if (!itemsGrid) return;
+
+    itemsGrid.innerHTML = allItems.map(item => {
+      const statusColors = {
+        available: 'bg-green-100 text-green-800',
+        borrowed: 'bg-yellow-100 text-yellow-800',
+        used: 'bg-gray-100 text-gray-800',
+        waste: 'bg-red-100 text-red-800',
+      };
+
+      const statusColor = statusColors[item.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800';
+
+      return `
+        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition cursor-pointer item-card" data-id="${item._id}">
+          ${item.image ? `
+            <img src="${item.image}" alt="${item.name}" class="w-full h-48 object-cover" />
+          ` : `
+            <div class="w-full h-48 bg-gray-200 flex items-center justify-center">
+              <svg class="w-16 h-16 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+              </svg>
+            </div>
+          `}
+          <div class="p-4">
+            <div class="flex justify-between items-start mb-2">
+              <h3 class="text-lg font-semibold text-gray-900">${item.name}</h3>
+              <span class="px-2 py-1 text-xs font-medium rounded-full ${statusColor}">
+                ${item.status}
+              </span>
+            </div>
+            <p class="text-sm text-gray-600 mb-2 line-clamp-2">${item.description}</p>
+            <div class="text-xs text-gray-500">
+              <div>📍 ${item.location}</div>
+              <div>🏷️ ${item.category}</div>
+              ${item.barcode ? `<div>🔖 ${item.barcode}</div>` : ''}
+            </div>
+          </div>
+        </div>
+      `;
+    }).join('');
+
+    // Add click handlers
+    document.querySelectorAll('.item-card').forEach(card => {
+      card.addEventListener('click', () => {
+        const itemId = card.getAttribute('data-id');
+        const item = allItems.find(i => i._id === itemId);
+        if (item) showItemModal(item);
+      });
+    });
+  }
+
+  // Show item modal
+  function showItemModal(item: any) {
+    const modal = document.getElementById('itemModal');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalContent = document.getElementById('modalContent');
+
+    if (!modal || !modalTitle || !modalContent) return;
+
+    modalTitle.textContent = item.name;
+
+    const statusColors = {
+      available: 'bg-green-100 text-green-800',
+      borrowed: 'bg-yellow-100 text-yellow-800',
+      used: 'bg-gray-100 text-gray-800',
+      waste: 'bg-red-100 text-red-800',
+    };
+
+    const statusColor = statusColors[item.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800';
+
+    modalContent.innerHTML = `
+      ${item.image ? `<img src="${item.image}" alt="${item.name}" class="w-full h-64 object-cover rounded-lg mb-4" />` : ''}
+      
+      <div class="space-y-4">
+        <div>
+          <span class="px-3 py-1 text-sm font-medium rounded-full ${statusColor}">${item.status}</span>
+        </div>
+        
+        <div>
+          <h3 class="font-semibold text-gray-700">Description</h3>
+          <p class="text-gray-600">${item.description}</p>
+        </div>
+        
+        <div class="grid grid-cols-2 gap-4">
+          <div>
+            <h3 class="font-semibold text-gray-700">Category</h3>
+            <p class="text-gray-600">${item.category}</p>
+          </div>
+          <div>
+            <h3 class="font-semibold text-gray-700">Location</h3>
+            <p class="text-gray-600">${item.location}</p>
+          </div>
+          <div>
+            <h3 class="font-semibold text-gray-700">Quantity</h3>
+            <p class="text-gray-600">${item.quantity}</p>
+          </div>
+          ${item.barcode ? `
+            <div>
+              <h3 class="font-semibold text-gray-700">Barcode</h3>
+              <p class="text-gray-600 font-mono">${item.barcode}</p>
+            </div>
+          ` : ''}
+        </div>
+        
+        ${item.components && item.components.length > 0 ? `
+          <div>
+            <h3 class="font-semibold text-gray-700 mb-2">Components</h3>
+            <ul class="space-y-1">
+              ${item.components.map((c: any) => `
+                <li class="text-gray-600">• ${c.name} (${c.quantity}x)</li>
+              `).join('')}
+            </ul>
+          </div>
+        ` : ''}
+        
+        ${item.borrowedBy ? `
+          <div>
+            <h3 class="font-semibold text-gray-700">Borrowed By</h3>
+            <p class="text-gray-600">${item.borrowedBy.name}</p>
+            <p class="text-sm text-gray-500">${new Date(item.borrowedAt).toLocaleDateString()}</p>
+          </div>
+        ` : ''}
+        
+        <div class="flex gap-2 pt-4">
+          ${item.status === 'available' ? `
+            <button class="action-btn flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700" data-action="borrow" data-id="${item._id}">
+              Borrow
+            </button>
+          ` : ''}
+          ${item.status === 'borrowed' ? `
+            <button class="action-btn flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700" data-action="return" data-id="${item._id}">
+              Return
+            </button>
+          ` : ''}
+          <button class="action-btn flex-1 bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700" data-action="delete" data-id="${item._id}">
+            Delete
+          </button>
+        </div>
+      </div>
+    `;
+
+    // Add action handlers
+    modalContent.querySelectorAll('.action-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const target = e.target as HTMLButtonElement;
+        const action = target.getAttribute('data-action');
+        const id = target.getAttribute('data-id');
+        
+        if (!id) return;
+        
+        try {
+          if (action === 'borrow') {
+            await itemsAPI.borrow(id);
+          } else if (action === 'return') {
+            await itemsAPI.return(id);
+          } else if (action === 'delete') {
+            if (confirm('Are you sure you want to delete this item?')) {
+              await itemsAPI.delete(id);
+            } else {
+              return;
+            }
+          }
+          
+          modal.classList.add('hidden');
+          fetchItems();
+        } catch (error: any) {
+          alert(error.message || 'Action failed');
+        }
+      });
+    });
+
+    modal.classList.remove('hidden');
+  }
+
+  // Close modal
+  document.getElementById('closeModal')?.addEventListener('click', () => {
+    document.getElementById('itemModal')?.classList.add('hidden');
+  });
+
+  document.getElementById('itemModal')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) {
+      document.getElementById('itemModal')?.classList.add('hidden');
+    }
+  });
+
+  // Update statistics
+  function updateStatistics() {
+    const total = allItems.length;
+    const available = allItems.filter(i => i.status === 'available').length;
+    const borrowed = allItems.filter(i => i.status === 'borrowed').length;
+    const used = allItems.filter(i => i.status === 'used').length;
+
+    document.getElementById('totalItems')!.textContent = total.toString();
+    document.getElementById('availableItems')!.textContent = available.toString();
+    document.getElementById('borrowedItems')!.textContent = borrowed.toString();
+    document.getElementById('usedItems')!.textContent = used.toString();
+  }
+
+  // Filter handlers
+  let filterTimeout: number;
+
+  function handleFilterChange() {
+    clearTimeout(filterTimeout);
+    filterTimeout = setTimeout(() => {
+      currentFilters = {
+        search: (document.getElementById('searchInput') as HTMLInputElement).value,
+        status: (document.getElementById('statusFilter') as HTMLSelectElement).value,
+        category: (document.getElementById('categoryFilter') as HTMLInputElement).value,
+        location: (document.getElementById('locationFilter') as HTMLInputElement).value,
+      };
+      fetchItems();
+    }, 300);
+  }
+
+  document.getElementById('searchInput')?.addEventListener('input', handleFilterChange);
+  document.getElementById('statusFilter')?.addEventListener('change', handleFilterChange);
+  document.getElementById('categoryFilter')?.addEventListener('input', handleFilterChange);
+  document.getElementById('locationFilter')?.addEventListener('input', handleFilterChange);
+
+  // Initial load
+  fetchItems();
+</script>
