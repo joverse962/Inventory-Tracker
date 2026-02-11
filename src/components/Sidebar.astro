@@ -1,0 +1,38 @@
+---
+const currentPath = Astro.url.pathname;
+---
+<aside class="w-64 bg-gray-800 text-white p-4 flex flex-col gap-2">
+  <div class="mb-6">
+    <h2 class="text-2xl font-bold">Menu</h2>
+  </div>
+  
+  <a 
+    href="/" 
+    class={`hover:bg-gray-700 p-3 rounded transition flex items-center gap-2 ${currentPath === '/' ? 'bg-gray-700' : ''}`}
+  >
+    <span>🏠</span>
+    <span>Dashboard</span>
+  </a>
+  
+  <a 
+    href="/add-item" 
+    class={`hover:bg-gray-700 p-3 rounded transition flex items-center gap-2 ${currentPath === '/add-item' ? 'bg-gray-700' : ''}`}
+  >
+    <span>➕</span>
+    <span>Add Item</span>
+  </a>
+  
+  <a 
+    href="/profile" 
+    class={`hover:bg-gray-700 p-3 rounded transition flex items-center gap-2 ${currentPath === '/profile' ? 'bg-gray-700' : ''}`}
+  >
+    <span>👤</span>
+    <span>Profile</span>
+  </a>
+  
+  <hr class="my-4 border-gray-600" />
+  
+  <div class="mt-auto">
+    <p class="text-xs text-gray-400">v1.0.0</p>
+  </div>
+</aside>

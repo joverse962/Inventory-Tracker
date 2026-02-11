@@ -1,0 +1,24 @@
+---
+import Navbar from '../components/Navbar.astro';
+import Sidebar from '../components/Sidebar.astro';
+import '../styles/global.css';
+---
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Inventory Tracker</title>
+  </head>
+  <body class="flex min-h-screen">
+    <Sidebar />
+    <div class="flex-1 flex flex-col">
+      <Navbar />
+      <main class="p-6 flex-1">
+        <slot />
+      </main>
+    </div>
+
+    <!-- Alpine.js for interactive components -->
+    <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>
+  </body>
+</html>

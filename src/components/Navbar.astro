@@ -1,0 +1,25 @@
+---
+---
+<nav class="bg-white shadow p-4 flex justify-between items-center">
+  <h1 class="font-bold text-xl text-blue-600">📦 Inventory Tracker</h1>
+  <div class="flex items-center gap-4">
+    <div class="relative" x-data="{ open: false }">
+      <button 
+        @click="open = !open"
+        class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600 transition"
+      >
+        Profile
+      </button>
+      <div 
+        x-show="open" 
+        @click.away="open = false"
+        class="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg py-1 z-10"
+        style="display: none;"
+      >
+        <a href="/profile" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">My Profile</a>
+        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Settings</a>
+        <a href="#" class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100">Logout</a>
+      </div>
+    </div>
+  </div>
+</nav>

@@ -1,0 +1,161 @@
+---
+const { item } = Astro.props;
+
+type ItemStatus = 'available' | 'borrowed' | 'used' | 'waste';
+
+const statusColors: Record<ItemStatus, string> = {
+  available: "bg-green-200 border-green-400",
+  borrowed: "bg-yellow-200 border-yellow-400",
+  used: "bg-gray-200 border-gray-400",
+  waste: "bg-red-200 border-red-400"
+};
+
+const statusEmoji: Record<ItemStatus, string> = {
+  available: "✅",
+  borrowed: "📤",
+  used: "🔧",
+  waste: "🗑️"
+};
+
+const status = item.status as ItemStatus;
+---
+<div 
+  class={`p-4 rounded-lg shadow border-2 ${statusColors[status]} cursor-pointer hover:shadow-xl transition-all`}
+  x-data="{ showModal: false }"
+>
+  <div @click="showModal = true">
+    <img 
+      src={item.photo || 'https://via.placeholder.com/300x200?text=' + item.name} 
+      alt={item.name} 
+      class="w-full h-40 object-cover rounded-md mb-3"
+    />
+    <h3 class="mt-2 font-bold text-lg">{item.name}</h3>
+    <p class="text-sm text-gray-700 flex items-center gap-1">
+      <span>{statusEmoji[status]}</span>
+      <span>Status: <strong>{status}</strong></span>
+    </p>
+    {item.currentUser && (
+      <p class="text-sm text-gray-600 mt-1">By: {item.currentUser}</p>
+    )}
+    {item.location && (
+      <p class="text-xs text-gray-500 mt-1">📍 {item.location}</p>
+    )}
+    {item.components && item.components.length > 0 && (
+      <p class="text-xs text-blue-600 mt-2">🔗 {item.components.length} component(s)</p>
+    )}
+  </div>
+
+  <!-- Modal -->
+  <div 
+    x-show="showModal" 
+    @click.self="showModal = false"
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    style="display: none;"
+  >
+    <div class="bg-white p-6 rounded-lg shadow-2xl max-w-2xl w-full mx-4" @click.stop>
+      <div class="flex justify-between items-start mb-4">
+        <h2 class="text-2xl font-bold">{item.name}</h2>
+        <button @click="showModal = false" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+      </div>
+      
+      <img 
+        src={item.photo || 'https://via.placeholder.com/600x300?text=' + item.name} 
+        alt={item.name} 
+        class="w-full h-64 object-cover rounded-md mb-4"
+      />
+      
+      <div class="grid grid-cols-2 gap-4 mb-4">
+        <div>
+          <p class="text-sm text-gray-600">Status</p>
+          <p class="font-semibold">{statusEmoji[status]} {status}</p>
+        </div>
+        <div>
+          <p class="text-sm text-gray-600">Current User</p>
+          <p class="font-semibold">{item.currentUser || 'None'}</p>
+        </div>
+        {item.location && (
+          <div>
+            <p class="text-sm text-gray-600">Location</p>
+            <p class="font-semibold">📍 {item.location}</p>
+          </div>
+        )}
+        {item.category && (
+          <div>
+            <p class="text-sm text-gray-600">Category</p>
+            <p class="font-semibold">{item.category}</p>
+          </div>
+        )}
+      </div>
+
+      {item.description && (
+        <div class="mb-4">
+          <p class="text-sm text-gray-600">Description</p>
+          <p class="text-gray-800">{item.description}</p>
+        </div>
+      )}
+
+      {item.components && item.components.length > 0 && (
+        <div class="mb-4">
+          <p class="text-sm text-gray-600 mb-2">Components</p>
+          <div class="space-y-2">
+            {item.components.map((comp: any) => (
+              <div class="bg-gray-100 p-2 rounded flex justify-between items-center">
+                <span>{comp.name}</span>
+                <span class="text-xs text-gray-500">{comp.quantity}x</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <!-- Barcode -->
+      <div class="mb-4 flex justify-center">
+        <svg id={`barcode-${item.id}`} class="barcode"></svg>
+      </div>
+      <script define:vars={{ itemId: item.id }}>
+        // Generate barcode when modal opens
+        import('https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js').then(module => {
+          const JsBarcode = module.default;
+          JsBarcode(`#barcode-${itemId}`, `ITEM${itemId.toString().padStart(6, '0')}`, {
+            format: "CODE128",
+            width: 2,
+            height: 40,
+            displayValue: true
+          });
+        });
+      </script>
+
+      <!-- Action Buttons -->
+      <div class="flex gap-2 mt-6">
+        {status === 'available' && (
+          <>
+            <button class="flex-1 bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition">
+              📤 Borrow
+            </button>
+            <button class="flex-1 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
+              🔧 Mark as Used
+            </button>
+          </>
+        )}
+        {status === 'borrowed' && (
+          <button class="flex-1 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition">
+            ↩️ Return Item
+          </button>
+        )}
+        {status === 'used' && (
+          <>
+            <button class="flex-1 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition">
+              ✅ Mark Available
+            </button>
+            <button class="flex-1 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">
+              🗑️ Mark as Waste
+            </button>
+          </>
+        )}
+        <button class="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition">
+          ✏️ Edit
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
