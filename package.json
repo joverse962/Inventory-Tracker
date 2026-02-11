@@ -5,8 +5,7 @@
   "scripts": {
     "dev": "astro dev",
     "build": "astro build",
-    "preview": "astro preview",
-    "astro": "astro"
+    "preview": "astro preview",    "start": "node ./dist/server/entry.mjs",    "astro": "astro"
   },
   "dependencies": {
     "@astrojs/node": "^9.1.0",
