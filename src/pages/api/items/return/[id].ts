@@ -33,7 +33,14 @@ export const POST: APIRoute = async ({ params, request }) => {
       );
     }
 
+    // Only the user who borrowed the item can return it
     const borrowerId = item.borrowedBy?.toString();
+    if (borrowerId !== currentUser.userId) {
+      return new Response(
+        JSON.stringify({ error: 'You are not allowed to return this item' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
 
     // Update item
     item.status = 'available';

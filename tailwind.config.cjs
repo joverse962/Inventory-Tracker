@@ -4,7 +4,11 @@ module.exports = {
     "./src/**/*.{astro,html,js,jsx,svelte,ts,tsx,vue}"
   ],
   theme: {
-    extend: {},
+    extend: {
+      fontFamily: {
+        sans: ['"Varela Round"', 'sans-serif'],
+      },
+    },
   },
   plugins: [],
 }

@@ -96,7 +96,8 @@ export const DELETE: APIRoute = async ({ params, request }) => {
       );
     }
 
-    const item = await Item.findByIdAndDelete(params.id);
+    // fetch item first to verify ownership
+    const item = await Item.findById(params.id);
 
     if (!item) {
       return new Response(
@@ -104,6 +105,17 @@ export const DELETE: APIRoute = async ({ params, request }) => {
         { status: 404, headers: { 'Content-Type': 'application/json' } }
       );
     }
+
+    // only creator can delete the item
+    if (String(item.createdBy) !== currentUser.userId) {
+      return new Response(
+        JSON.stringify({ error: 'You are not allowed to delete this item' }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } }
+      );
+    }
+
+    // proceed with deletion
+    await Item.findByIdAndDelete(params.id);
 
     return new Response(
       JSON.stringify({ message: 'Item deleted successfully' }),
