@@ -1,16 +1,16 @@
 // @ts-check
 import { defineConfig } from 'astro/config';
-import node from '@astrojs/node';
+import netlify from '@astrojs/netlify';
 
 // https://astro.build/config
 export default defineConfig({
   site: process.env.PUBLIC_SITE_URL || 'http://localhost:4321',
   output: 'server',
-  adapter: node({
-    mode: 'standalone'
+  adapter: netlify({
+    edgeMiddleware: true
   }),
   server: {
     host: '0.0.0.0',
-    port: Number(process.env.PORT) || 4321
+    port: process.env.PORT ? parseInt(process.env.PORT, 10) : 4321
   }
 });
