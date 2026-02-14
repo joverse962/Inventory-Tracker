@@ -1,0 +1,26 @@
+import { d as createComponent, i as renderComponent, j as renderScript, r as renderTemplate, m as maybeRenderHead } from '../chunks/astro/server_C1Aja4dB.mjs';
+import 'piccolore';
+import { $ as $$BaseLayout } from '../chunks/BaseLayout_CHSEmhwj.mjs';
+export { renderers } from '../renderers.mjs';
+
+const $$Index = createComponent(async ($$result, $$props, $$slots) => {
+  return renderTemplate`${renderComponent($$result, "BaseLayout", $$BaseLayout, { "title": "Dashboard - Inventory Tracker" }, { "default": async ($$result2) => renderTemplate` ${maybeRenderHead()}<div class="p-6"> <!-- Header with User Info --> <div class="flex justify-between items-center mb-6"> <div> <h1 class="text-3xl font-bold text-[#4B0082]">Inventory Dashboard</h1> <p id="userWelcome" class="text-gray-600 mt-1">Welcome back!</p> </div> <button id="logoutBtn" class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition">
+Logout
+</button> </div> <!-- Statistics --> <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-6"> <div class="bg-white p-6 rounded-lg shadow"> <div class="text-gray-500 text-sm">Total Items</div> <div id="totalItems" class="text-3xl font-bold text-gray-900">0</div> </div> <div class="bg-white p-6 rounded-lg shadow"> <div class="text-gray-500 text-sm">Available</div> <div id="availableItems" class="text-3xl font-bold text-green-600">0</div> </div> <div class="bg-white p-6 rounded-lg shadow"> <div class="text-gray-500 text-sm">Borrowed</div> <div id="borrowedItems" class="text-3xl font-bold text-yellow-600">0</div> </div> <div class="bg-white p-6 rounded-lg shadow"> <div class="text-gray-500 text-sm">In Use</div> <div id="usedItems" class="text-3xl font-bold text-gray-600">0</div> </div> </div> <!-- Filter Bar --> <div class="bg-white p-4 rounded-lg shadow mb-6"> <div class="grid grid-cols-1 md:grid-cols-4 gap-4"> <input type="text" id="searchInput" placeholder="Search items..." class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"> <select id="statusFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"> <option value="">All Status</option> <option value="available">Available</option> <option value="borrowed">Borrowed</option> <option value="used">In Use</option> <option value="waste">Waste</option> </select> <select id="categoryFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"> <option value="">All Categories</option> <!-- dynamic options injected by script --> </select> <select id="locationFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"> <option value="">All Locations</option> <!-- dynamic options injected by script --> </select> </div> </div> <!-- Loading State --> <div id="loadingState" class="text-center py-12"> <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div> <p class="mt-4 text-gray-600">Loading items...</p> </div> <!-- Error State --> <div id="errorState" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6"></div> <!-- Empty State --> <div id="emptyState" class="hidden text-center py-12"> <svg class="mx-auto h-24 w-24 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path> </svg> <h3 class="mt-4 text-lg font-medium text-gray-900">No items found</h3> <p class="mt-2 text-gray-600">Get started by adding your first inventory item.</p> <a href="/add-item" class="mt-4 inline-block bg-blue-600 text-white px-6 py-2 rounded-lg hover:bg-blue-700">
+Add Item
+</a> </div> <!-- Items Grid --> <div id="itemsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden"> <!-- Items will be inserted here --> </div> </div>  <div id="itemModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"> <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto"> <div class="p-6"> <div class="flex justify-between items-start mb-4"> <h2 id="modalTitle" class="text-2xl font-bold text-gray-900"></h2> <button id="closeModal" class="text-gray-400 hover:text-gray-600"> <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"> <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path> </svg> </button> </div> <div id="modalContent"> <!-- Modal content will be inserted here --> </div> </div> </div> </div> ` })} ${renderScript($$result, "/mnt/c/Users/user/Documents/GitHub/Joverse/Inventory-Tracker/src/pages/index.astro?astro&type=script&index=0&lang.ts")}`;
+}, "/mnt/c/Users/user/Documents/GitHub/Joverse/Inventory-Tracker/src/pages/index.astro", void 0);
+
+const $$file = "/mnt/c/Users/user/Documents/GitHub/Joverse/Inventory-Tracker/src/pages/index.astro";
+const $$url = "";
+
+const _page = /*#__PURE__*/Object.freeze(/*#__PURE__*/Object.defineProperty({
+  __proto__: null,
+  default: $$Index,
+  file: $$file,
+  url: $$url
+}, Symbol.toStringTag, { value: 'Module' }));
+
+const page = () => _page;
+
+export { page };
