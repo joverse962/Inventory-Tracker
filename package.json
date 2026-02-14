@@ -10,6 +10,7 @@
     "astro": "astro"
   },
   "dependencies": {
+    "@astrojs/netlify": "^6.6.4",
     "@astrojs/node": "^9.1.0",
     "@tailwindcss/postcss": "^4.1.18",
     "astro": "^5.17.1",
@@ -22,7 +23,6 @@
     "tailwindcss": "^4.1.18"
   },
   "devDependencies": {
-    "@astrojs/netlify": "^6.6.4",
     "@types/bcryptjs": "^2.4.6",
     "@types/jsonwebtoken": "^9.0.5"
   }
