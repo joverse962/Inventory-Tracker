@@ -126,6 +126,10 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   checkAuth();
 
   let allItems: any[] = [];
+  // keep a master list of all possible categories/locations so filters don't disappear
+  let categoriesList: string[] = [];
+  let locationsList: string[] = [];
+
   let currentFilters = {
     search: '',
     status: '',
@@ -133,18 +137,11 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     location: '',
   };
 
-  // populate category and location select inputs based on current items
+  // rebuild select options using the master lists
   function populateFilters() {
     const catSelect = document.getElementById('categoryFilter') as HTMLSelectElement;
     const locSelect = document.getElementById('locationFilter') as HTMLSelectElement;
     if (!catSelect || !locSelect) return;
-
-    const categories = Array.from(
-      new Set(allItems.map(i => i.category).filter(Boolean))
-    ).sort();
-    const locations = Array.from(
-      new Set(allItems.map(i => i.location).filter(Boolean))
-    ).sort();
 
     const prevCat = catSelect.value;
     const prevLoc = locSelect.value;
@@ -167,8 +164,8 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       }
     }
 
-    rebuild(catSelect, categories, 'All Categories', prevCat);
-    rebuild(locSelect, locations, 'All Locations', prevLoc);
+    rebuild(catSelect, categoriesList, 'All Categories', prevCat);
+    rebuild(locSelect, locationsList, 'All Locations', prevLoc);
   }
 
   // Get current user and display welcome message
@@ -181,12 +178,30 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   // Logout handler
   document.getElementById('logoutBtn')?.addEventListener('click', logout);
 
+  // load master lists (unfiltered) once or when items change
+  async function refreshOptionLists() {
+    try {
+      const data = await itemsAPI.getAll();
+      const masterItems = data.items || [];
+      categoriesList = Array.from(new Set(masterItems.map(i => i.category).filter(Boolean))).sort();
+      locationsList = Array.from(new Set(masterItems.map(i => i.location).filter(Boolean))).sort();
+      populateFilters();
+    } catch (err) {
+      console.error('[Dashboard] Failed to refresh option lists', err);
+    }
+  }
+
   // Fetch items
   async function fetchItems() {
     const loadingState = document.getElementById('loadingState');
     const errorState = document.getElementById('errorState');
     const emptyState = document.getElementById('emptyState');
     const itemsGrid = document.getElementById('itemsGrid');
+
+    // make sure the master lists are populated at least once
+    if (categoriesList.length === 0 && locationsList.length === 0) {
+      await refreshOptionLists();
+    }
 
     try {
       loadingState?.classList.remove('hidden');
@@ -196,7 +211,10 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
       const data = await itemsAPI.getAll(currentFilters);
       allItems = data.items || [];
-      
+
+      // keep our master lists up to date in case new categories/locations appeared
+      await refreshOptionLists();
+
       console.log('[Dashboard] Fetched items:', allItems.length);
 
       // populate category & location selects based on data
