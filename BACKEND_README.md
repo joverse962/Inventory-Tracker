@@ -1,7 +1,7 @@
 # Backend API Documentation
 
 ## Overview
-This inventory tracker includes a full-featured backend with authentication, database storage, file uploads, and barcode tracking.
+This inventory tracker includes a full-featured backend with authentication, database storage, and file uploads.
 
 ## Tech Stack
 - **Runtime**: Node.js with Astro SSR
@@ -157,16 +157,6 @@ Authorization: Bearer <token>
 ```http
 POST /api/items/return/:id
 Authorization: Bearer <token>
-```
-
-### Barcode
-
-#### Get Item by Barcode
-```http
-GET /api/items/barcode/:barcode
-Authorization: Bearer <token>
-```
-
 ### File Upload
 
 #### Upload Image
@@ -208,8 +198,7 @@ Response:
   description: string;
   category: string;
   location: string;
-  status: 'available' | 'borrowed' | 'used' | 'waste';
-  barcode: string; // auto-generated if not provided
+  status: 'available' | 'borrowed' | 'taken' | 'waste' | 'need_repairing';
   image: string;
   components: Array<{
     name: string;

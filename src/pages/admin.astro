@@ -1,0 +1,139 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Admin Dashboard - Inventory Tracker">
+  <div class="p-6 max-w-7xl mx-auto">
+    <div class="mb-6">
+      <h1 class="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+      <p class="text-gray-600 mt-1">Users, current borrowed/taken items, and usage history.</p>
+    </div>
+
+    <div id="loadingState" class="text-center py-12">
+      <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <p class="mt-4 text-gray-600">Loading admin data...</p>
+    </div>
+
+    <div id="errorState" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6"></div>
+
+    <div id="usersContainer" class="hidden space-y-6"></div>
+  </div>
+</BaseLayout>
+
+<script>
+  import { checkAuth } from '../lib/middleware';
+  import { authAPI, adminAPI } from '../lib/api';
+
+  checkAuth();
+
+  async function loadAdminDashboard() {
+    const loadingState = document.getElementById('loadingState');
+    const errorState = document.getElementById('errorState');
+    const usersContainer = document.getElementById('usersContainer');
+
+    try {
+      loadingState?.classList.remove('hidden');
+      errorState?.classList.add('hidden');
+      usersContainer?.classList.add('hidden');
+
+      const meData = await authAPI.getMe() as { user: { role?: string } };
+      if (meData?.user?.role !== 'admin') {
+        window.location.href = '/';
+        return;
+      }
+
+      const dashboard = await adminAPI.getDashboard() as { users?: any[] };
+      const users = dashboard.users || [];
+
+      if (!usersContainer) return;
+      usersContainer.innerHTML = users.map((user: any) => {
+        const borrowed = user.currentItems?.borrowed || [];
+        const taken = user.currentItems?.taken || [];
+        const borrowedCount = user.currentBorrowedQuantity || 0;
+        const takenCount = user.currentTakenQuantity || 0;
+        const sessions = user.borrowSessions || [];
+
+        return `
+          <section class="bg-white rounded-lg shadow p-6">
+            <div class="flex flex-wrap justify-between gap-3 mb-4">
+              <div>
+                <h2 class="text-xl font-semibold text-gray-900">${user.name}</h2>
+                <p class="text-sm text-gray-600">${user.email}</p>
+              </div>
+              <div class="text-sm text-gray-700">
+                <div>Borrowed now: <span class="font-semibold">${borrowedCount}</span></div>
+                <div>Taken now: <span class="font-semibold">${takenCount}</span></div>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div class="border rounded p-4">
+                <h3 class="font-semibold text-gray-900 mb-2">Currently Borrowed/Taken</h3>
+                ${
+                  borrowed.length === 0 && taken.length === 0
+                    ? '<p class="text-sm text-gray-500">No currently borrowed/taken items.</p>'
+                    : `
+                      <div class="space-y-3">
+                        ${borrowed.map((group: any) => `
+                          <div class="bg-yellow-50 rounded p-3">
+                            <div class="text-sm font-medium text-gray-900">${group.item?.name || 'Unknown item'} — ${group.instances?.length || 0} unit(s)</div>
+                            ${group.instances?.map((instance: any, index: number) => `
+                              <div class="text-sm text-gray-700 mt-1">
+                                • Unit ${index + 1}: ${instance.condition || 'unknown'}
+                                ${instance.borrowedAt ? ` • Borrowed ${new Date(instance.borrowedAt).toLocaleDateString()}` : ''}
+                              </div>
+                            `).join('')}
+                          </div>
+                        `).join('')}
+                        ${taken.map((group: any) => `
+                          <div class="bg-blue-50 rounded p-3">
+                            <div class="text-sm font-medium text-gray-900">${group.item?.name || 'Unknown item'} — ${group.instances?.length || 0} unit(s)</div>
+                            ${group.instances?.map((instance: any, index: number) => `
+                              <div class="text-sm text-gray-700 mt-1">
+                                • Unit ${index + 1}: ${instance.condition || 'unknown'}
+                                ${instance.takenAt ? ` • Taken ${new Date(instance.takenAt).toLocaleDateString()}` : ''}
+                              </div>
+                            `).join('')}
+                          </div>
+                        `).join('')}
+                      </div>
+                    `
+                }
+              </div>
+
+              <div class="border rounded p-4">
+                <h3 class="font-semibold text-gray-900 mb-2">Borrow/Take History</h3>
+                ${
+                  sessions.length === 0
+                    ? '<p class="text-sm text-gray-500">No history sessions found.</p>'
+                    : `
+                      <div class="space-y-2 max-h-72 overflow-auto pr-1">
+                        ${sessions.map((entry: any) => `
+                          <div class="text-sm text-gray-700 bg-gray-50 rounded px-3 py-2">
+                            <p class="font-medium">${entry.item?.name || 'Unknown item'}</p>
+                            <p>${entry.action === 'take' ? 'Taken' : 'Borrowed'}: ${entry.startDate ? new Date(entry.startDate).toLocaleString() : '-'}</p>
+                            <p>Returned: ${entry.returnDate ? new Date(entry.returnDate).toLocaleString() : 'Not returned yet'}</p>
+                          </div>
+                        `).join('')}
+                      </div>
+                    `
+                }
+              </div>
+            </div>
+          </section>
+        `;
+      }).join('');
+
+      loadingState?.classList.add('hidden');
+      usersContainer.classList.remove('hidden');
+    } catch (error: any) {
+      loadingState?.classList.add('hidden');
+      if (errorState) {
+        errorState.textContent = error.message || 'Failed to load admin dashboard';
+        errorState.classList.remove('hidden');
+      }
+    }
+  }
+
+  loadAdminDashboard();
+</script>

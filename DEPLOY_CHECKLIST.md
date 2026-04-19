@@ -138,7 +138,6 @@ Users can now:
 - [ ] Add user roles (admin, viewer, editor)
 - [ ] Export data to CSV/Excel
 - [ ] Mobile app version
-- [ ] Barcode scanner integration
 - [ ] Low stock alerts
 - [ ] Item maintenance scheduling
 

@@ -80,7 +80,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       const createResult = await itemsAPI.create(testItemData);
       console.log('Item created:', createResult);
       
-      alert('Test successful! Check console for details. Item ID: ' + createResult.item._id);
+      alert('Test successful! Check console for details. Item ID: ' + createResult.item.id);
       
     } catch (error: any) {
       console.error('Test failed:', error);

@@ -1,0 +1,107 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Availability {
+  available
+  borrowed
+  taken
+}
+
+enum ItemCondition {
+  good
+  waste
+  need_repairing
+}
+
+enum ItemHistoryAction {
+  borrow
+  take
+  return
+  condition_change
+}
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  password        String
+  name            String
+  role            String    @default("user") // admin or user
+  createdItems    Item[]    @relation("CreatedBy")
+  borrowedInstances ItemInstance[] @relation("BorrowedBy")
+  takenInstances    ItemInstance[] @relation("TakenBy")
+  historyEvents   ItemHistory[]
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Item {
+  id                String      @id @default(cuid())
+  name              String
+  description       String
+  category          String
+  location          String
+  image             String?
+  components        Json?     // Store components as JSON array without quantities
+  
+  quantity          Int       @default(1)
+  instances         ItemInstance[]
+  
+  createdBy         User      @relation("CreatedBy", fields: [createdById], references: [id])
+  createdById       String
+  historyEvents     ItemHistory[]
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+}
+
+model ItemInstance {
+  id                String      @id @default(cuid())
+  item              Item        @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId            String
+  condition         ItemCondition @default(good)
+  availability      Availability @default(available)
+  
+  // Borrowed tracking
+  borrowedBy        User?       @relation("BorrowedBy", fields: [borrowedById], references: [id], onDelete: SetNull)
+  borrowedById      String?
+  borrowedAt        DateTime?
+  borrowedReminderSent Boolean  @default(false)
+  
+  // Taken tracking
+  takenBy           User?       @relation("TakenBy", fields: [takenById], references: [id], onDelete: SetNull)
+  takenById         String?
+  takenAt           DateTime?
+  takenReminderSent Boolean     @default(false)
+  
+  historyEvents     ItemHistory[]
+  
+  createdAt         DateTime    @default(now())
+  updatedAt         DateTime    @updatedAt
+  
+  @@index([availability])
+  @@index([takenAt])
+  @@index([borrowedAt])
+}
+
+model ItemHistory {
+  id                   String            @id @default(cuid())
+  item                 Item              @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  itemId               String
+  instance             ItemInstance?     @relation(fields: [instanceId], references: [id], onDelete: SetNull)
+  instanceId           String?
+  user                 User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userId               String
+  action               ItemHistoryAction
+  availabilitySnapshot Availability?
+  conditionSnapshot    ItemCondition?
+  notes                String?
+  createdAt            DateTime          @default(now())
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@index([itemId, createdAt(sort: Desc)])
+}

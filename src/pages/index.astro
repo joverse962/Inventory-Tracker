@@ -10,12 +10,6 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         <h1 class="text-3xl font-bold text-[#4B0082]">Inventory Dashboard</h1>
         <p id="userWelcome" class="text-gray-600 mt-1">Welcome back!</p>
       </div>
-      <button
-        id="logoutBtn"
-        class="bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700 transition"
-      >
-        Logout
-      </button>
     </div>
 
     <!-- Statistics -->
@@ -33,8 +27,8 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         <div id="borrowedItems" class="text-3xl font-bold text-yellow-600">0</div>
       </div>
       <div class="bg-white p-6 rounded-lg shadow">
-        <div class="text-gray-500 text-sm">In Use</div>
-        <div id="usedItems" class="text-3xl font-bold text-gray-600">0</div>
+        <div class="text-gray-500 text-sm">Taken</div>
+        <div id="usedItems" class="text-3xl font-bold text-blue-600">0</div>
       </div>
     </div>
 
@@ -47,12 +41,17 @@ import BaseLayout from '../layouts/BaseLayout.astro';
           placeholder="Search items..."
           class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
         />
-        <select id="statusFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
-          <option value="">All Status</option>
+        <select id="availabilityFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+          <option value="">All Availability</option>
           <option value="available">Available</option>
           <option value="borrowed">Borrowed</option>
-          <option value="used">In Use</option>
+          <option value="taken">Taken</option>
+        </select>
+        <select id="conditionFilter" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+          <option value="">All Conditions</option>
+          <option value="good">Good</option>
           <option value="waste">Waste</option>
+          <option value="need_repairing">Need Repairing</option>
         </select>
         <select
           id="categoryFilter"
@@ -93,14 +92,47 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     </div>
 
     <!-- Items Grid -->
-    <div id="itemsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 hidden">
+    <div id="itemsGrid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 min-w-0">
       <!-- Items will be inserted here -->
     </div>
   </div>
 
+  <!-- Quantity Modal -->
+  <div id="quantityModal" class="hidden fixed inset-0 bg-black bg-opacity-50 items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg shadow-2xl max-w-md w-full">
+      <div class="p-6">
+        <h3 id="quantityModalTitle" class="text-xl font-bold mb-4">Select Quantity</h3>
+        <p id="quantityModalMessage" class="text-gray-600 mb-4">How many units would you like to take?</p>
+        
+        <div class="mb-4">
+          <label for="quantityInput" class="block text-sm font-medium text-gray-700 mb-2">
+            Quantity (max: <span id="maxQuantity">1</span>)
+          </label>
+          <input
+            type="number"
+            id="quantityInput"
+            min="1"
+            max="1"
+            value="1"
+            class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+          />
+        </div>
+        
+        <div class="flex gap-2">
+          <button id="quantityConfirmBtn" class="flex-1 bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition">
+            Confirm
+          </button>
+          <button id="quantityCancelBtn" class="flex-1 bg-gray-300 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-400 transition">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Item Modal -->
-  <div id="itemModal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-    <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+  <div id="itemModal" class="hidden fixed inset-0 bg-black bg-opacity-50 items-center justify-center p-4 z-50">
+    <div class="bg-white rounded-lg max-w-2xl w-full max-h-[90vh] overflow-y-auto overflow-x-hidden">
       <div class="p-6">
         <div class="flex justify-between items-start mb-4">
           <h2 id="modalTitle" class="text-2xl font-bold text-gray-900"></h2>
@@ -120,7 +152,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
 <script>
   import { checkAuth } from '../lib/middleware';
-  import { itemsAPI, logout, getCurrentUser } from '../lib/api';
+  import { itemsAPI, getCurrentUser } from '../lib/api';
 
   // Check authentication
   checkAuth();
@@ -132,6 +164,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
   let currentFilters = {
     search: '',
+    availability: '',
     status: '',
     category: '',
     location: '',
@@ -175,20 +208,37 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     userWelcome.textContent = `Welcome back, ${user.name}!`;
   }
 
-  // Logout handler
-  document.getElementById('logoutBtn')?.addEventListener('click', logout);
-
   // load master lists (unfiltered) once or when items change
   async function refreshOptionLists() {
     try {
-      const data = await itemsAPI.getAll();
-      const masterItems = data.items || [];
-      categoriesList = Array.from(new Set(masterItems.map(i => i.category).filter(Boolean))).sort();
-      locationsList = Array.from(new Set(masterItems.map(i => i.location).filter(Boolean))).sort();
+      const data = await itemsAPI.getAll() as any;
+      const masterItems = data.items || [] as any[];
+      const categoryValues = masterItems.map((i: any) => i.category).filter((val: unknown): val is string => typeof val === 'string');
+      const locationValues = masterItems.map((i: any) => i.location).filter((val: unknown): val is string => typeof val === 'string');
+      categoriesList = Array.from(new Set<string>(categoryValues)).sort();
+      locationsList = Array.from(new Set<string>(locationValues)).sort();
       populateFilters();
     } catch (err) {
       console.error('[Dashboard] Failed to refresh option lists', err);
     }
+  }
+
+  function applyFilters(items: any[]) {
+    return items.filter(item => {
+      if (currentFilters.availability) {
+        if (currentFilters.availability === 'available' && item.availableQuantity <= 0) return false;
+        if (currentFilters.availability === 'borrowed' && item.borrowedQuantity <= 0) return false;
+        if (currentFilters.availability === 'taken' && item.takenQuantity <= 0) return false;
+      }
+
+      if (currentFilters.status) {
+        if (!item.instances?.some((instance: any) => instance.condition === currentFilters.status)) {
+          return false;
+        }
+      }
+
+      return true;
+    });
   }
 
   // Fetch items
@@ -209,34 +259,37 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       emptyState?.classList.add('hidden');
       itemsGrid?.classList.add('hidden');
 
-      const data = await itemsAPI.getAll(currentFilters);
+      const data = await itemsAPI.getAll(currentFilters) as any;
       allItems = data.items || [];
 
       // keep our master lists up to date in case new categories/locations appeared
       await refreshOptionLists();
 
+      const filteredItems = applyFilters(allItems);
+
       console.log('[Dashboard] Fetched items:', allItems.length);
+      console.log('[Dashboard] Filtered items:', filteredItems.length);
 
       // populate category & location selects based on data
       populateFilters();
-      if (allItems.length > 0) {
-        console.log('[Dashboard] First item sample:', {
-          name: allItems[0].name,
-          image: allItems[0].image,
-          hasImage: !!allItems[0].image
+      if (filteredItems.length > 0) {
+        console.log('[Dashboard] First filtered item sample:', {
+          name: filteredItems[0].name,
+          image: filteredItems[0].image,
+          hasImage: !!filteredItems[0].image
         });
       }
 
       loadingState?.classList.add('hidden');
 
-      if (allItems.length === 0) {
+      if (filteredItems.length === 0) {
         emptyState?.classList.remove('hidden');
       } else {
         itemsGrid?.classList.remove('hidden');
-        renderItems();
+        renderItems(filteredItems);
       }
 
-      updateStatistics();
+      updateStatistics(filteredItems);
     } catch (error: any) {
       loadingState?.classList.add('hidden');
       if (errorState) {
@@ -247,22 +300,38 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   }
 
   // Render items
-  function renderItems() {
+  function getConditionSummary(instances: any[] = []) {
+    if (!instances || instances.length === 0) return 'No condition info';
+
+    const counts = instances.reduce((acc: any, instance: any) => {
+      acc[instance.condition] = (acc[instance.condition] || 0) + 1;
+      return acc;
+    }, {});
+
+    const parts = [];
+    if (counts.good) parts.push(`✨ ${counts.good} good`);
+    if (counts.need_repairing) parts.push(`🔧 ${counts.need_repairing} repair`);
+    if (counts.waste) parts.push(`🗑️ ${counts.waste} waste`);
+    return parts.join(', ');
+  }
+
+  function renderItems(itemsToShow: any[] = allItems) {
     const itemsGrid = document.getElementById('itemsGrid');
     if (!itemsGrid) return;
 
-    itemsGrid.innerHTML = allItems.map(item => {
-      const statusColors = {
+    itemsGrid.innerHTML = itemsToShow.map(item => {
+      const availabilityColors = {
         available: 'bg-green-100 text-green-800',
         borrowed: 'bg-yellow-100 text-yellow-800',
-        used: 'bg-gray-100 text-gray-800',
-        waste: 'bg-red-100 text-red-800',
+        taken: 'bg-blue-100 text-blue-800',
       };
 
-      const statusColor = statusColors[item.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800';
+      const availabilityColor = availabilityColors[item.availability as keyof typeof availabilityColors] || 'bg-gray-100 text-gray-800';
+      const canUpdateStatus = user && item.instances?.some((instance: any) => (instance.borrowedBy?.id === user.id || instance.takenBy?.id === user.id));
+      const conditionSummary = getConditionSummary(item.instances);
 
       return `
-        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition cursor-pointer item-card" data-id="${item._id}">
+        <div class="bg-white rounded-lg shadow-md overflow-hidden hover:shadow-lg transition cursor-pointer item-card min-w-0" data-id="${item.id}">
           ${item.image ? `
             <img src="${item.image}" alt="${item.name}" class="w-full h-48 object-cover" />
           ` : `
@@ -275,15 +344,16 @@ import BaseLayout from '../layouts/BaseLayout.astro';
           <div class="p-4">
             <div class="flex justify-between items-start mb-2">
               <h3 class="text-lg font-semibold text-gray-900">${item.name}</h3>
-              <span class="px-2 py-1 text-xs font-medium rounded-full ${statusColor}">
-                ${item.status}
+              <span class="px-2 py-1 text-xs font-medium rounded-full ${availabilityColor}">
+                ${item.availability}
               </span>
             </div>
-            <p class="text-sm text-gray-600 mb-2 line-clamp-2">${item.description}</p>
-            <div class="text-xs text-gray-500">
+            <p class="text-sm text-gray-600 mb-2 line-clamp-2 break-words">${item.description}</p>
+            <div class="text-xs text-gray-500 min-w-0">
               <div>📍 ${item.location}</div>
               <div>🏷️ ${item.category}</div>
-              ${item.barcode ? `<div>🔖 ${item.barcode}</div>` : ''}
+              <div>🧮 ${item.availableQuantity} available / ${item.quantity}</div>
+              <div>${conditionSummary}</div>
             </div>
           </div>
         </div>
@@ -294,11 +364,69 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     document.querySelectorAll('.item-card').forEach(card => {
       card.addEventListener('click', () => {
         const itemId = card.getAttribute('data-id');
-        const item = allItems.find(i => i._id === itemId);
+        const item = allItems.find(i => i.id === itemId);
         if (item) showItemModal(item);
       });
     });
   }
+
+  // Show quantity modal
+  let currentQuantityModalCancel: (() => void) | undefined;
+
+  function showQuantityModal(title: string, message: string, maxQuantity: number, onConfirm: (quantity: number) => void, onCancel?: () => void) {
+    const modal = document.getElementById('quantityModal');
+    const modalTitle = document.getElementById('quantityModalTitle');
+    const modalMessage = document.getElementById('quantityModalMessage');
+    const maxQuantitySpan = document.getElementById('maxQuantity');
+    const quantityInput = document.getElementById('quantityInput') as HTMLInputElement;
+    const confirmBtn = document.getElementById('quantityConfirmBtn');
+    const cancelBtn = document.getElementById('quantityCancelBtn');
+
+    if (!modal || !modalTitle || !modalMessage || !maxQuantitySpan || !quantityInput || !confirmBtn || !cancelBtn) return;
+
+    // Store the cancel callback
+    currentQuantityModalCancel = onCancel;
+
+    modalTitle.textContent = title;
+    modalMessage.textContent = message;
+    maxQuantitySpan.textContent = maxQuantity.toString();
+    quantityInput.max = maxQuantity.toString();
+    quantityInput.value = '1';
+
+    const handleConfirm = () => {
+      const quantity = Number(quantityInput.value.trim());
+      if (!Number.isInteger(quantity) || quantity <= 0 || quantity > maxQuantity) {
+        alert(`Please enter a valid quantity between 1 and ${maxQuantity}.`);
+        return;
+      }
+      modal.classList.add('hidden');
+      currentQuantityModalCancel = undefined;
+      onConfirm(quantity);
+    };
+
+    const handleCancel = () => {
+      modal.classList.add('hidden');
+      if (onCancel) onCancel();
+      currentQuantityModalCancel = undefined;
+    };
+
+    confirmBtn.onclick = handleConfirm;
+    cancelBtn.onclick = handleCancel;
+
+    modal.classList.remove('hidden');
+    modal.classList.add('flex');
+  }
+
+  // Close quantity modal
+  document.getElementById('quantityModal')?.addEventListener('click', (e) => {
+    if (e.target === e.currentTarget) {
+      document.getElementById('quantityModal')?.classList.add('hidden');
+      if (currentQuantityModalCancel) {
+        currentQuantityModalCancel();
+        currentQuantityModalCancel = undefined;
+      }
+    }
+  });
 
   // Show item modal
   function showItemModal(item: any) {
@@ -310,21 +438,36 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
     modalTitle.textContent = item.name;
 
-    const statusColors = {
+    const availabilityColors = {
       available: 'bg-green-100 text-green-800',
       borrowed: 'bg-yellow-100 text-yellow-800',
-      used: 'bg-gray-100 text-gray-800',
-      waste: 'bg-red-100 text-red-800',
+      taken: 'bg-blue-100 text-blue-800',
     };
 
-    const statusColor = statusColors[item.status as keyof typeof statusColors] || 'bg-gray-100 text-gray-800';
+    const conditionEmojis = {
+      good: '✨',
+      waste: '🗑️',
+      need_repairing: '🔧',
+    };
+
+    const availabilityColor = availabilityColors[item.availability as keyof typeof availabilityColors] || 'bg-gray-100 text-gray-800';
+    const conditionSummary = getConditionSummary(item.instances);
+    const userInstances = item.instances?.filter((instance: any) =>
+      (instance.borrowedBy?.id === user?.id || instance.takenBy?.id === user?.id)
+    ) || [];
+    const otherInstances = item.instances?.filter((instance: any) =>
+      (instance.borrowedBy?.id && instance.borrowedBy?.id !== user?.id) ||
+      (instance.takenBy?.id && instance.takenBy?.id !== user?.id)
+    ) || [];
+    const canUpdateStatus = userInstances.length > 0;
 
     modalContent.innerHTML = `
       ${item.image ? `<img src="${item.image}" alt="${item.name}" class="w-full h-64 object-cover rounded-lg mb-4" />` : ''}
       
       <div class="space-y-4">
-        <div>
-          <span class="px-3 py-1 text-sm font-medium rounded-full ${statusColor}">${item.status}</span>
+        <div class="flex gap-2">
+          <span class="px-3 py-1 text-sm font-medium rounded-full ${availabilityColor}">${item.availability}</span>
+          <span class="px-3 py-1 text-sm font-medium rounded-full bg-purple-100 text-purple-800">${conditionSummary}</span>
         </div>
         
         <div>
@@ -332,7 +475,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
           <p class="text-gray-600">${item.description}</p>
         </div>
         
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <h3 class="font-semibold text-gray-700">Category</h3>
             <p class="text-gray-600">${item.category}</p>
@@ -342,18 +485,14 @@ import BaseLayout from '../layouts/BaseLayout.astro';
             <p class="text-gray-600">${item.location}</p>
           </div>
           <div>
-            <h3 class="font-semibold text-gray-700">Quantity</h3>
+            <h3 class="font-semibold text-gray-700">Total Quantity</h3>
             <p class="text-gray-600">${item.quantity}</p>
           </div>
-          ${item.barcode ? `
-            <div>
-              <h3 class="font-semibold text-gray-700">Barcode</h3>
-              <p class="text-gray-600 font-mono">${item.barcode}</p>
-            </div>
-          ` : ''}
-        </div>
-        
-        ${item.components && item.components.length > 0 ? `
+          <div>
+            <h3 class="font-semibold text-gray-700">Available</h3>
+            <p class="text-gray-600">${item.availableQuantity}</p>
+          </div>
+          ${item.components && item.components.length > 0 ? `
           <div>
             <h3 class="font-semibold text-gray-700 mb-2">Components</h3>
             <ul class="space-y-1">
@@ -364,27 +503,65 @@ import BaseLayout from '../layouts/BaseLayout.astro';
           </div>
         ` : ''}
         
-        ${item.borrowedBy ? `
-          <div>
-            <h3 class="font-semibold text-gray-700">Borrowed By</h3>
-            <p class="text-gray-600">${item.borrowedBy.name}</p>
-            <p class="text-sm text-gray-500">${new Date(item.borrowedAt).toLocaleDateString()}</p>
+        ${otherInstances.length > 0 ? `
+          <div class="border border-gray-200 rounded-lg bg-yellow-50 p-4">
+            <h3 class="font-semibold text-gray-800 mb-3">Currently held by another user</h3>
+            ${otherInstances.map((instance: any, index: number) => `
+              <div class="mb-3 last:mb-0 text-sm text-gray-700">
+                <div class="font-medium">${instance.borrowedBy?.name || instance.takenBy?.name || 'Unknown user'}</div>
+                <div>${instance.borrowedBy ? 'Borrowed' : 'Taken'} • ${instance.condition || 'unknown'}</div>
+                <div class="text-xs text-gray-500">${instance.borrowedBy?.email || instance.takenBy?.email || ''}</div>
+              </div>
+            `).join('')}
+          </div>
+        ` : ''}
+        ${userInstances.length > 0 ? `
+          <div class="border border-gray-200 rounded-lg bg-gray-50 p-4">
+            <h3 class="font-semibold text-gray-800 mb-3">Your borrowed/taken unit(s)</h3>
+            ${userInstances.map((instance: any, index: number) => `
+              <div class="mb-4 last:mb-0">
+                <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between w-full min-w-0">
+                  <div class="min-w-0">
+                    <p class="text-sm text-gray-600 break-words">Unit ${index + 1} — ${instance.availability}</p>
+                    <p class="text-sm text-gray-900 break-words">Current: ${conditionEmojis[instance.condition as keyof typeof conditionEmojis] || '✓'} ${instance.condition}</p>
+                  </div>
+                  <div class="flex flex-col sm:flex-row sm:items-center sm:justify-end gap-2 w-full sm:w-auto min-w-0">
+                    <select class="condition-select flex-1 min-w-0 border border-gray-300 rounded px-3 py-2 bg-white text-sm" data-instance-id="${instance.id}">
+                      <option value="good" ${instance.condition === 'good' ? 'selected' : ''}>Good</option>
+                      <option value="need_repairing" ${instance.condition === 'need_repairing' ? 'selected' : ''}>Needs Repair</option>
+                      <option value="waste" ${instance.condition === 'waste' ? 'selected' : ''}>Waste</option>
+                    </select>
+                    <button class="condition-update-btn flex-shrink-0 bg-purple-600 text-white px-3 py-2 rounded text-sm" data-instance-id="${instance.id}">
+                      Save
+                    </button>
+                  </div>
+                </div>
+              </div>
+            `).join('')}
           </div>
         ` : ''}
         
-        <div class="flex gap-2 pt-4">
-          ${item.status === 'available' ? `
-            <button class="action-btn flex-1 bg-[#4B0082] text-white px-4 py-2 rounded-lg hover:bg-violet-950" data-action="borrow" data-id="${item._id}">
+        <div class="flex items-start gap-2 pt-4 flex-wrap">
+          ${item.availability === 'available' ? `
+            <button class="action-btn w-full sm:w-auto max-w-full bg-blue-600 text-white px-4 py-2 text-sm leading-tight rounded-lg hover:bg-blue-700" data-action="take" data-id="${item.id}">
+              Take
+            </button>
+            <button class="action-btn w-full sm:w-auto max-w-full bg-[#4B0082] text-white px-4 py-2 text-sm leading-tight rounded-lg hover:bg-violet-950" data-action="borrow" data-id="${item.id}">
               Borrow
             </button>
           ` : ''}
-          ${item.status === 'borrowed' && user && item.borrowedBy && String(item.borrowedBy._id) === user.id ? `
-            <button class="action-btn flex-1 bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700" data-action="return" data-id="${item._id}">
+          ${item.availability === 'borrowed' && user && item.borrowedBy && String(item.borrowedBy.id) === user.id ? `
+            <button class="action-btn w-full sm:w-auto max-w-full bg-green-600 text-white px-4 py-2 text-sm leading-tight rounded-lg hover:bg-green-700" data-action="return" data-id="${item.id}">
               Return
             </button>
           ` : ''}
-          ${user && item.createdBy && String(item.createdBy._id) === user.id ? `
-            <button class="action-btn flex-1 bg-red-600 text-white px-4 py-2 rounded-lg hover:bg-red-700" data-action="delete" data-id="${item._id}">
+          ${item.availability === 'taken' && user && item.takenBy && String(item.takenBy.id) === user.id ? `
+            <button class="action-btn w-full sm:w-auto max-w-full bg-green-600 text-white px-4 py-2 text-sm leading-tight rounded-lg hover:bg-green-700" data-action="return" data-id="${item.id}">
+              Return
+            </button>
+          ` : ''}
+          ${user && item.createdBy && String(item.createdBy.id) === user.id ? `
+            <button class="action-btn w-full sm:w-auto max-w-full bg-red-600 text-white px-4 py-2 text-sm leading-tight rounded-lg hover:bg-red-700" data-action="delete" data-id="${item.id}">
               Delete
             </button>
           ` : ''}
@@ -402,8 +579,39 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         if (!id) return;
         
         try {
-          if (action === 'borrow') {
-            await itemsAPI.borrow(id);
+          if (action === 'take' || action === 'borrow') {
+            const maxQuantity = item.availableQuantity;
+            if (maxQuantity <= 0) {
+              alert('No items available to take/borrow.');
+              return;
+            }
+
+            // Hide the item modal before showing quantity modal
+            modal.classList.add('hidden');
+
+            showQuantityModal(
+              action === 'take' ? 'Take Items' : 'Borrow Items',
+              `How many units would you like to ${action}?`,
+              maxQuantity,
+              async (quantity: number) => {
+                try {
+                  if (action === 'take') {
+                    await itemsAPI.take(id, quantity);
+                  } else {
+                    await itemsAPI.borrow(id, quantity);
+                  }
+                  modal.classList.add('hidden');
+                  fetchItems();
+                } catch (error: any) {
+                  alert(error.message || 'Action failed');
+                }
+              },
+              () => {
+                // Show item modal again when quantity modal is cancelled
+                modal.classList.remove('hidden');
+              }
+            );
+            return;
           } else if (action === 'return') {
             await itemsAPI.return(id);
           } else if (action === 'delete') {
@@ -423,6 +631,44 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     });
 
     modal.classList.remove('hidden');
+    modal.classList.add('flex');
+
+    // Add condition update handlers for each instance row
+    modalContent.querySelectorAll('.condition-update-btn').forEach(btn => {
+      btn.addEventListener('click', async (e) => {
+        const target = e.target as HTMLButtonElement;
+        const instanceId = target.getAttribute('data-instance-id');
+        if (!instanceId) return;
+
+        const select = modalContent.querySelector(`.condition-select[data-instance-id="${instanceId}"]`) as HTMLSelectElement | null;
+        if (!select) return;
+        const status = select.value as 'good' | 'need_repairing' | 'waste';
+
+        try {
+          await itemsAPI.updateStatus(item.id, instanceId, status);
+          alert('Condition updated successfully!');
+          modal.classList.add('hidden');
+          fetchItems();
+        } catch (error: any) {
+          alert(error.message || 'Failed to update condition');
+        }
+      });
+    });
+
+    // Add close modal handler
+    const closeBtn = document.getElementById('closeModal');
+    if (closeBtn) {
+      closeBtn.addEventListener('click', () => {
+        modal.classList.add('hidden');
+      });
+    }
+
+    // Close modal when clicking outside
+    modal.addEventListener('click', (e) => {
+      if (e.target === modal) {
+        modal.classList.add('hidden');
+      }
+    });
   }
 
   // Close modal
@@ -437,27 +683,28 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   });
 
   // Update statistics
-  function updateStatistics() {
-    const total = allItems.length;
-    const available = allItems.filter(i => i.status === 'available').length;
-    const borrowed = allItems.filter(i => i.status === 'borrowed').length;
-    const used = allItems.filter(i => i.status === 'used').length;
+  function updateStatistics(itemsToShow: any[] = allItems) {
+    const total = itemsToShow.length;
+    const available = itemsToShow.filter(i => i.availability === 'available').length;
+    const borrowed = itemsToShow.filter(i => i.availability === 'borrowed').length;
+    const taken = itemsToShow.filter(i => i.availability === 'taken').length;
 
     document.getElementById('totalItems')!.textContent = total.toString();
     document.getElementById('availableItems')!.textContent = available.toString();
     document.getElementById('borrowedItems')!.textContent = borrowed.toString();
-    document.getElementById('usedItems')!.textContent = used.toString();
+    document.getElementById('usedItems')!.textContent = taken.toString();
   }
 
   // Filter handlers
-  let filterTimeout: number;
+  let filterTimeout: ReturnType<typeof setTimeout>;
 
   function handleFilterChange() {
     clearTimeout(filterTimeout);
     filterTimeout = setTimeout(() => {
       currentFilters = {
         search: (document.getElementById('searchInput') as HTMLInputElement).value,
-        status: (document.getElementById('statusFilter') as HTMLSelectElement).value,
+        availability: (document.getElementById('availabilityFilter') as HTMLSelectElement).value,
+        status: (document.getElementById('conditionFilter') as HTMLSelectElement).value,
         category: (document.getElementById('categoryFilter') as HTMLSelectElement).value,
         location: (document.getElementById('locationFilter') as HTMLSelectElement).value,
       };
@@ -466,7 +713,8 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   }
 
   document.getElementById('searchInput')?.addEventListener('input', handleFilterChange);
-  document.getElementById('statusFilter')?.addEventListener('change', handleFilterChange);
+  document.getElementById('availabilityFilter')?.addEventListener('change', handleFilterChange);
+  document.getElementById('conditionFilter')?.addEventListener('change', handleFilterChange);
   document.getElementById('categoryFilter')?.addEventListener('change', handleFilterChange);
   document.getElementById('locationFilter')?.addEventListener('change', handleFilterChange);
 

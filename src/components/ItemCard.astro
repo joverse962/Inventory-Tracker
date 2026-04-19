@@ -1,26 +1,61 @@
 ---
-const { item } = Astro.props;
+const { item, currentUserId } = Astro.props;
 
-type ItemStatus = 'available' | 'borrowed' | 'used' | 'waste';
+type Availability = 'available' | 'borrowed' | 'taken';
+type ItemCondition = 'good' | 'waste' | 'need_repairing';
 
-const statusColors: Record<ItemStatus, string> = {
+const availabilityColors: Record<Availability, string> = {
   available: "bg-green-200 border-green-400",
   borrowed: "bg-yellow-200 border-yellow-400",
-  used: "bg-gray-200 border-gray-400",
-  waste: "bg-red-200 border-red-400"
+  taken: "bg-blue-200 border-blue-400"
 };
 
-const statusEmoji: Record<ItemStatus, string> = {
+const availabilityEmoji: Record<Availability, string> = {
   available: "✅",
   borrowed: "📤",
-  used: "🔧",
-  waste: "🗑️"
+  taken: "🔴"
 };
 
-const status = item.status as ItemStatus;
+const conditionColors: Record<ItemCondition, string> = {
+  good: "bg-green-100 border-green-300",
+  waste: "bg-red-100 border-red-300",
+  need_repairing: "bg-orange-100 border-orange-300"
+};
+
+const conditionEmoji: Record<ItemCondition, string> = {
+  good: "✨",
+  waste: "🗑️",
+  need_repairing: "🔧"
+};
+
+const availability = (item.availability || 'available') as Availability;
+
+// Get condition summary from instances
+function getConditionSummary(instances: any[] = []) {
+  if (!instances || instances.length === 0) return 'No condition info';
+  
+  const counts = instances.reduce((acc: any, instance: any) => {
+    acc[instance.condition] = (acc[instance.condition] || 0) + 1;
+    return acc;
+  }, {});
+  
+  const parts = [];
+  if (counts.good) parts.push(`✨ ${counts.good} good`);
+  if (counts.need_repairing) parts.push(`🔧 ${counts.need_repairing} repair`);
+  if (counts.waste) parts.push(`🗑️ ${counts.waste} waste`);
+  return parts.join(', ');
+}
+
+const conditionSummary = getConditionSummary(item.instances);
+
+// Check if current user has any borrowed/taken instances
+const userInstances = item.instances?.filter((instance: any) => 
+  (instance.borrowedBy?.id === currentUserId || instance.takenBy?.id === currentUserId)
+) || [];
+const canUpdateStatus = userInstances.length > 0;
 ---
 <div 
-  class={`p-4 rounded-lg shadow border-2 ${statusColors[status]} cursor-pointer hover:shadow-xl transition-all`}
+  class={`p-4 rounded-lg shadow border-2 ${availabilityColors[availability]} cursor-pointer hover:shadow-xl transition-all`}
   x-data="{ showModal: false }"
 >
   <div @click="showModal = true">
@@ -31,11 +66,15 @@ const status = item.status as ItemStatus;
     />
     <h3 class="mt-2 font-bold text-lg">{item.name}</h3>
     <p class="text-sm text-gray-700 flex items-center gap-1">
-      <span>{statusEmoji[status]}</span>
-      <span>Status: <strong>{status}</strong></span>
+      <span>{availabilityEmoji[availability]}</span>
+      <span>Availability: <strong>{availability}</strong></span>
     </p>
-    {item.currentUser && (
-      <p class="text-sm text-gray-600 mt-1">By: {item.currentUser}</p>
+    <p class="text-sm text-gray-700 flex items-center gap-1">
+      <span>📊</span>
+      <span>Conditions: <strong>{conditionSummary}</strong></span>
+    </p>
+    {userInstances.length > 0 && (
+      <p class="text-sm text-green-600 mt-1">✏️ You can update condition of your {userInstances.length} unit(s)</p>
     )}
     {item.location && (
       <p class="text-xs text-gray-500 mt-1">📍 {item.location}</p>
@@ -66,12 +105,12 @@ const status = item.status as ItemStatus;
       
       <div class="grid grid-cols-2 gap-4 mb-4">
         <div>
-          <p class="text-sm text-gray-600">Status</p>
-          <p class="font-semibold">{statusEmoji[status]} {status}</p>
+          <p class="text-sm text-gray-600">Availability</p>
+          <p class="font-semibold">{availabilityEmoji[availability]} {availability}</p>
         </div>
         <div>
-          <p class="text-sm text-gray-600">Current User</p>
-          <p class="font-semibold">{item.currentUser || 'None'}</p>
+          <p class="text-sm text-gray-600">Conditions</p>
+          <p class="font-semibold">📊 {conditionSummary}</p>
         </div>
         {item.location && (
           <div>
@@ -86,6 +125,32 @@ const status = item.status as ItemStatus;
           </div>
         )}
       </div>
+
+      {userInstances.length > 0 && (
+        <div class="border border-gray-200 rounded-lg bg-blue-50 p-4 mb-4">
+          <h3 class="font-semibold text-gray-800 mb-3">Your borrowed/taken unit(s)</h3>
+          {userInstances.map((instance: any, index: number) => `
+            <div class="mb-4 last:mb-0">
+              <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <p class="text-sm text-gray-600">Unit ${index + 1} — ${instance.availability}</p>
+                  <p class="text-sm text-gray-900">Current: ${conditionEmoji[instance.condition as keyof typeof conditionEmoji] || '✓'} ${instance.condition}</p>
+                </div>
+                <div class="flex flex-col sm:flex-row sm:items-center gap-2">
+                  <select class="condition-select border border-gray-300 rounded px-3 py-2 bg-white text-sm" data-instance-id="${instance.id}">
+                    <option value="good" ${instance.condition === 'good' ? 'selected' : ''}>Good</option>
+                    <option value="need_repairing" ${instance.condition === 'need_repairing' ? 'selected' : ''}>Needs Repair</option>
+                    <option value="waste" ${instance.condition === 'waste' ? 'selected' : ''}>Waste</option>
+                  </select>
+                  <button class="condition-update-btn bg-purple-600 text-white px-3 py-2 rounded text-sm hover:bg-purple-700" data-action="update-condition" data-item-id={item.id} data-instance-id="${instance.id}">
+                    Save
+                  </button>
+                </div>
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      )}
 
       {item.description && (
         <div class="mb-4">
@@ -108,54 +173,89 @@ const status = item.status as ItemStatus;
         </div>
       )}
 
-      <!-- Barcode -->
-      <div class="mb-4 flex justify-center">
-        <svg id={`barcode-${item.id}`} class="barcode"></svg>
-      </div>
-      <script define:vars={{ itemId: item.id }}>
-        // Generate barcode when modal opens
-        import('https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js').then(module => {
-          const JsBarcode = module.default;
-          JsBarcode(`#barcode-${itemId}`, `ITEM${itemId.toString().padStart(6, '0')}`, {
-            format: "CODE128",
-            width: 2,
-            height: 40,
-            displayValue: true
-          });
-        });
-      </script>
-
       <!-- Action Buttons -->
-      <div class="flex gap-2 mt-6">
-        {status === 'available' && (
+      <div class="flex items-start gap-2 mt-6 flex-wrap">
+        {availability === 'available' && (
           <>
-            <button class="flex-1 bg-yellow-500 text-white px-4 py-2 rounded hover:bg-yellow-600 transition">
+            <button class="inline-flex items-center justify-center w-full sm:w-auto min-w-35 bg-yellow-500 text-white px-4 py-2 text-sm leading-tight rounded-md hover:bg-yellow-600 transition" data-action="borrow" data-item-id={item.id}>
               📤 Borrow
             </button>
-            <button class="flex-1 bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600 transition">
-              🔧 Mark as Used
+            <button class="inline-flex items-center justify-center w-full sm:w-auto min-w-35 bg-blue-500 text-white px-4 py-2 text-sm leading-tight rounded-md hover:bg-blue-600 transition" data-action="take" data-item-id={item.id}>
+              🔴 Take
             </button>
           </>
         )}
-        {status === 'borrowed' && (
-          <button class="flex-1 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition">
+        {availability === 'borrowed' && (
+          <button class="inline-flex items-center justify-center w-full sm:w-auto min-w-35 bg-green-500 text-white px-4 py-2 text-sm leading-tight rounded-md hover:bg-green-600 transition" data-action="return" data-item-id={item.id}>
             ↩️ Return Item
           </button>
         )}
-        {status === 'used' && (
-          <>
-            <button class="flex-1 bg-green-500 text-white px-4 py-2 rounded hover:bg-green-600 transition">
-              ✅ Mark Available
-            </button>
-            <button class="flex-1 bg-red-500 text-white px-4 py-2 rounded hover:bg-red-600 transition">
-              🗑️ Mark as Waste
-            </button>
-          </>
+        {availability === 'taken' && (
+          <button class="inline-flex items-center justify-center w-full sm:w-auto min-w-35 bg-green-500 text-white px-4 py-2 text-sm leading-tight rounded-md hover:bg-green-600 transition" data-action="return" data-item-id={item.id}>
+            ↩️ Return Item
+          </button>
         )}
-        <button class="bg-gray-200 text-gray-700 px-4 py-2 rounded hover:bg-gray-300 transition">
-          ✏️ Edit
-        </button>
       </div>
     </div>
   </div>
 </div>
+
+<script define:vars={{ itemId: item.id, currentUserId: currentUserId }}>
+  import { itemsAPI } from '../lib/api';
+
+  async function handleAction(actionFn, id, successMessage, failureMessage) {
+    try {
+      await actionFn(id);
+      alert(successMessage);
+      window.location.reload();
+    } catch (error) {
+      console.error(failureMessage, error);
+      alert(failureMessage);
+    }
+  }
+
+  // Handle item action buttons
+  document.addEventListener('click', async (e) => {
+    const target = e.target;
+    const action = target.getAttribute('data-action');
+    const id = target.getAttribute('data-item-id');
+    
+    if (!action || !id) return;
+
+    if (action === 'borrow') {
+      await handleAction(itemsAPI.borrow, id, 'Item borrowed successfully!', 'Error borrowing item');
+    } else if (action === 'take') {
+      await handleAction(itemsAPI.take, id, 'Item taken successfully!', 'Error taking item');
+    } else if (action === 'return') {
+      await handleAction(itemsAPI.return, id, 'Item returned successfully!', 'Error returning item');
+    } else if (action === 'confirm-status') {
+      const status = target.getAttribute('data-status');
+      try {
+        if (!status || !['good', 'waste', 'need_repairing'].includes(status)) {
+          alert('Invalid status selected');
+          return;
+        }
+        await itemsAPI.updateStatus(id, status);
+        alert('Item condition updated successfully!');
+        window.location.reload();
+      } catch (error) {
+        console.error('Update status error:', error);
+        alert('Error updating condition');
+      }
+    } else if (action === 'update-condition') {
+      const instanceId = target.getAttribute('data-instance-id');
+      const select = document.querySelector(`.condition-select[data-instance-id="${instanceId}"]`);
+      if (!instanceId || !select) return;
+      
+      const newCondition = select.value;
+      try {
+        await itemsAPI.updateStatus(id, newCondition, instanceId);
+        alert('Condition updated successfully!');
+        window.location.reload();
+      } catch (error) {
+        console.error('Update condition error:', error);
+        alert('Error updating condition');
+      }
+    }
+  });
+</script>

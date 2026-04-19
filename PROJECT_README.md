@@ -68,8 +68,7 @@ A modern, full-featured inventory management system built with **Astro** and **T
 │   │   ├── Navbar.astro         # Top navigation bar
 │   │   ├── Sidebar.astro        # Side menu
 │   │   ├── ItemCard.astro       # Item display card with modal
-│   │   ├── FilterBar.astro      # Search and filter controls
-│   │   └── BarcodeScanner.astro # Barcode scanning component
+│   │   └── FilterBar.astro      # Search and filter controls
 │   ├── layouts/
 │   │   └── BaseLayout.astro     # Main layout template
 │   ├── pages/
@@ -95,20 +94,14 @@ Each item card includes:
 - Component list (if applicable)
 - Interactive modal with:
   - Full item details
-  - Barcode display
-  - Action buttons (Borrow, Return, Mark as Used, etc.)
+  - Action buttons (Borrow, Return, Mark as Taken, etc.)
 
 ### FilterBar
 Real-time filtering by:
 - Search query (name, description, user)
-- Status (available, borrowed, used, waste)
+- Status (available, borrowed, taken, waste, need_repairing)
 - Category (Electronics, Furniture, etc.)
 - Location (Warehouse A/B, Office floors)
-
-### BarcodeScanner
-- Camera-based scanning (ready for library integration)
-- Manual barcode entry
-- Quick search by barcode
 
 ## 🎨 Styling
 

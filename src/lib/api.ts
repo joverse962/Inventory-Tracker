@@ -1,5 +1,15 @@
-// API Base URL
-const API_URL = import.meta.env.PUBLIC_API_URL || '';
+function normalizeApiOrigin(url?: string): string {
+  const fallback = 'http://localhost:3000';
+  const raw = (url || fallback).trim().replace(/\/+$/, '');
+  return raw.endsWith('/api') ? raw.slice(0, -4) : raw;
+}
+
+// API origin should be backend origin (without /api suffix)
+export const API_ORIGIN = import.meta.env.DEV
+  ? 'http://localhost:3000'
+  : normalizeApiOrigin(import.meta.env.PUBLIC_API_URL);
+
+const API_BASE = `${API_ORIGIN}/api`;
 
 // Get auth token
 export function getToken(): string | null {
@@ -46,7 +56,8 @@ async function apiRequest<T>(
   endpoint: string,
   options: RequestInit = {}
 ): Promise<T> {
-  const url = `${API_URL}${endpoint}`;
+  const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
+  const url = `${API_BASE}${normalizedEndpoint}`;
   
   const response = await fetch(url, {
     ...options,
@@ -70,65 +81,83 @@ async function apiRequest<T>(
 
 // Auth API
 export const authAPI = {
-  login: (email: string, password: string) =>
-    apiRequest('/api/auth/login', {
+  login: (email: string, password: string, asAdmin = false) =>
+    apiRequest('/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ email, password, asAdmin }),
     }),
 
   register: (name: string, email: string, password: string) =>
-    apiRequest('/api/auth/register', {
+    apiRequest('/auth/register', {
       method: 'POST',
       body: JSON.stringify({ name, email, password }),
     }),
 
-  getMe: () => apiRequest('/api/auth/me', { method: 'GET' }),
+  getMe: () => apiRequest('/auth/me', { method: 'GET' }),
+};
+
+export const adminAPI = {
+  getDashboard: () => apiRequest('/admin/dashboard', { method: 'GET' }),
 };
 
 // Items API
 export const itemsAPI = {
   getAll: (filters?: {
+    availability?: string;
     status?: string;
     category?: string;
     location?: string;
     search?: string;
   }) => {
     const params = new URLSearchParams();
+    if (filters?.availability) params.append('availability', filters.availability);
     if (filters?.status) params.append('status', filters.status);
     if (filters?.category) params.append('category', filters.category);
     if (filters?.location) params.append('location', filters.location);
     if (filters?.search) params.append('search', filters.search);
     
     const query = params.toString();
-    return apiRequest(`/api/items${query ? `?${query}` : ''}`, { method: 'GET' });
+    return apiRequest(`/items${query ? `?${query}` : ''}`, { method: 'GET' });
   },
 
-  getById: (id: string) => apiRequest(`/api/items/${id}`, { method: 'GET' }),
+  getById: (id: string) => apiRequest(`/items/${id}`, { method: 'GET' }),
 
   create: (item: any) => {
     console.log('[Items API] Creating item with data:', item);
-    return apiRequest('/api/items', {
+    return apiRequest('/items', {
       method: 'POST',
       body: JSON.stringify(item),
     });
   },
 
   update: (id: string, item: any) =>
-    apiRequest(`/api/items/${id}`, {
+    apiRequest(`/items/${id}`, {
       method: 'PUT',
       body: JSON.stringify(item),
     }),
 
-  delete: (id: string) => apiRequest(`/api/items/${id}`, { method: 'DELETE' }),
+  delete: (id: string) => apiRequest(`/items/${id}`, { method: 'DELETE' }),
 
-  borrow: (id: string) =>
-    apiRequest(`/api/items/borrow/${id}`, { method: 'POST' }),
+  borrow: (id: string, quantity: number = 1) =>
+    apiRequest(`/items/${id}/borrow`, { method: 'POST', body: JSON.stringify({ quantity }) }),
 
-  return: (id: string) =>
-    apiRequest(`/api/items/return/${id}`, { method: 'POST' }),
+  take: (id: string, quantity: number = 1) =>
+    apiRequest(`/items/${id}/take`, { method: 'POST', body: JSON.stringify({ quantity }) }),
 
-  getByBarcode: (barcode: string) =>
-    apiRequest(`/api/items/barcode/${barcode}`, { method: 'GET' }),
+  return: (id: string, quantity?: number) =>
+    apiRequest(`/items/${id}/return`, { method: 'POST', body: quantity ? JSON.stringify({ quantity }) : undefined }),
+
+  updateStatus: (id: string, instanceId: string, status: 'good' | 'waste' | 'need_repairing') =>
+    apiRequest(`/items/${id}/update-condition`, {
+      method: 'POST',
+      body: JSON.stringify({ instanceId, condition: status }),
+    }),
+
+  getMyHistory: () => apiRequest('/items/history/me', { method: 'GET' }),
+
+  getByBarcode: async (_barcode: string) => {
+    throw new Error('Barcode lookup endpoint is not available in the current backend.');
+  },
 };
 
 // Upload API
@@ -139,7 +168,7 @@ export const uploadAPI = {
     formData.append('file', file);
 
     const token = getToken();
-    const response = await fetch(`${API_URL}/api/upload`, {
+    const response = await fetch(`${API_BASE}/upload`, {
       method: 'POST',
       headers: {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
