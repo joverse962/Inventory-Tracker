@@ -1,15 +1,28 @@
 ---
 const currentPath = Astro.url.pathname;
 ---
-<aside class="w-64 bg-gray-800 text-white p-4 flex flex-col gap-2">
+<aside class="h-full w-full bg-gray-800 text-white p-4 flex flex-col gap-2">
   <div class="mb-6 flex flex-col items-center">
     <img src="/images/CM.png" alt="CM Logo" class="h-10 w-auto mb-2" />
     <!-- <h2 class="text-2xl font-bold">Menu</h2> -->
   </div>
+
+  <!-- Close button on mobile drawer -->
+  <button
+    type="button"
+    class="md:hidden mb-2 inline-flex items-center justify-center rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-gray-200 hover:bg-gray-700"
+    aria-label="Close menu"
+    @click="sidebarOpen = false"
+  >
+    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+    </svg>
+  </button>
   
   <a 
     href="/" 
     class={`hover:bg-gray-700 p-3 rounded transition flex items-center gap-2 ${currentPath === '/' ? 'bg-gray-700' : ''}`}
+    @click="sidebarOpen = false"
   >
     <span>🏠</span>
     <span>Dashboard</span>
@@ -18,6 +31,7 @@ const currentPath = Astro.url.pathname;
   <a 
     href="/add-item" 
     class={`hover:bg-gray-700 p-3 rounded transition flex items-center gap-2 ${currentPath === '/add-item' ? 'bg-gray-700' : ''}`}
+    @click="sidebarOpen = false"
   >
     <span>➕</span>
     <span>Add Item</span>
@@ -26,6 +40,7 @@ const currentPath = Astro.url.pathname;
   <a 
     href="/profile" 
     class={`hover:bg-gray-700 p-3 rounded transition flex items-center gap-2 ${currentPath === '/profile' ? 'bg-gray-700' : ''}`}
+    @click="sidebarOpen = false"
   >
     <span>👤</span>
     <span>Profile</span>
@@ -36,9 +51,21 @@ const currentPath = Astro.url.pathname;
     href="/admin" 
     class={`hover:bg-gray-700 p-3 rounded transition flex items-center gap-2 ${currentPath === '/admin' ? 'bg-gray-700' : ''}`}
     style="display: none;"
+    @click="sidebarOpen = false"
   >
     <span>🛠️</span>
     <span>Admin Dashboard</span>
+  </a>
+
+  <a 
+    id="itemsDashboardLink"
+    href="/items-dashboard" 
+    class={`hover:bg-gray-700 p-3 rounded transition flex items-center gap-2 ${currentPath === '/items-dashboard' ? 'bg-gray-700' : ''}`}
+    style="display: none;"
+    @click="sidebarOpen = false"
+  >
+    <span>📋</span>
+    <span>Items Dashboard</span>
   </a>
   
   <hr class="my-4 border-gray-600" />
@@ -58,6 +85,10 @@ const currentPath = Astro.url.pathname;
           const adminLink = document.getElementById('adminLink');
           if (adminLink) {
             adminLink.style.display = 'flex';
+          }
+          const itemsDashboardLink = document.getElementById('itemsDashboardLink');
+          if (itemsDashboardLink) {
+            itemsDashboardLink.style.display = 'flex';
           }
         }
       } catch (err) {

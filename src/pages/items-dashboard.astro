@@ -1,0 +1,430 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+---
+
+<BaseLayout title="Items Dashboard - Inventory Tracker">
+  <div class="p-4 sm:p-6 max-w-7xl mx-auto">
+    <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
+      <div class="min-w-0">
+        <h1 class="text-3xl font-bold text-gray-900">Items Dashboard</h1>
+        <p class="text-gray-600 mt-1">Edit and Delete items.</p>
+      </div>
+      <div class="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+        <button
+          id="moveBasementBtn"
+          class="w-full sm:w-auto bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+        >
+          Move all items to Basement
+        </button>
+        <a
+          href="/add-item"
+          class="w-full sm:w-auto inline-flex items-center justify-center bg-[#4B0082] text-white px-4 py-2 rounded-lg hover:bg-violet-950 transition"
+        >
+          Add Item
+        </a>
+      </div>
+    </div>
+
+    <div class="bg-white rounded-lg shadow p-4 sm:p-6 mb-6">
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <!-- <div class="border rounded-lg p-4">
+          <h2 class="text-lg font-semibold text-gray-900 mb-2">Admin Tools</h2>
+          <p class="text-sm text-gray-600 mb-3">
+            Manage storages and fix invalid locations.
+          </p>
+          <button
+            id="moveBasementBtn2"
+            class="w-full sm:w-auto bg-green-600 text-white px-4 py-2 rounded-lg hover:bg-green-700 transition"
+          >
+            Move all items to Basement
+          </button>
+          <div id="basementMsg" class="text-sm text-gray-600 mt-2"></div>
+        </div> -->
+
+        <div class="border rounded-lg p-4">
+          <h2 class="text-lg font-semibold text-gray-900 mb-2">Storages</h2>
+          <div class="flex gap-2 mb-3">
+            <input
+              id="newStorageName"
+              type="text"
+              placeholder="New storage name"
+              class="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 min-w-0"
+            />
+            <button
+              id="addStorageBtn"
+              class="px-4 py-2 bg-[#4B0082] text-white rounded-lg hover:bg-violet-950 transition"
+            >
+              Add
+            </button>
+          </div>
+          <div id="storageList" class="space-y-2"></div>
+          <div id="storageMsg" class="text-sm text-gray-600 mt-2"></div>
+        </div>
+      </div>
+
+      <div class="mt-6 grid grid-cols-1 md:grid-cols-3 gap-3">
+        <input
+          id="search"
+          type="text"
+          placeholder="Search by name/description..."
+          class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+        />
+        <select id="category" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+          <option value="">All Categories</option>
+        </select>
+        <select id="location" class="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500">
+          <option value="">All Locations</option>
+        </select>
+      </div>
+      <div id="toolsMsg" class="text-sm text-gray-600 mt-3"></div>
+    </div>
+
+    <div id="loading" class="text-center py-12">
+      <div class="inline-block animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+      <p class="mt-4 text-gray-600">Loading items...</p>
+    </div>
+    <div id="error" class="hidden bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-6"></div>
+
+    <div id="items" class="hidden space-y-4"></div>
+  </div>
+</BaseLayout>
+
+<script>
+  import { checkAuth } from '../lib/middleware';
+  import { authAPI, itemsAPI, adminAPI } from '../lib/api';
+
+  checkAuth();
+
+  const loading = document.getElementById('loading');
+  const error = document.getElementById('error');
+  const itemsEl = document.getElementById('items');
+  const msg = document.getElementById('toolsMsg');
+  const storageMsg = document.getElementById('storageMsg');
+  const basementMsg = document.getElementById('basementMsg');
+
+  const searchEl = document.getElementById('search');
+  const categoryEl = document.getElementById('category');
+  const locationEl = document.getElementById('location');
+  const storageListEl = document.getElementById('storageList');
+
+  let allItems = [];
+  let allStorages = [];
+  let allCategories = [];
+  let filterTimeout;
+
+  function setError(text) {
+    if (!error) return;
+    error.textContent = text;
+    error.classList.remove('hidden');
+  }
+
+  function clearError() {
+    error?.classList.add('hidden');
+  }
+
+  function uniqueSorted(values) {
+    return Array.from(new Set(values.filter(Boolean))).sort((a, b) => String(a).localeCompare(String(b)));
+  }
+
+  function rebuildSelect(select, values, placeholder) {
+    if (!select) return;
+    const prev = select.value;
+    select.innerHTML = `<option value="">${placeholder}</option>` + values.map(v => `<option value="${String(v).replace(/"/g, '&quot;')}">${v}</option>`).join('');
+    if (prev) select.value = prev;
+  }
+
+  function renderStorageList(storages) {
+    if (!storageListEl) return;
+    storageListEl.innerHTML = (storages || []).map((s) => `
+      <div class="flex flex-col sm:flex-row sm:items-center gap-2 p-2 bg-gray-50 rounded-lg">
+        <input
+          class="storage-name-input flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white min-w-0"
+          value="${String(s.name || '').replace(/"/g, '&quot;')}"
+          data-id="${s.id}"
+        />
+        <div class="flex gap-2">
+          <button class="storage-save-btn px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition" data-id="${s.id}">
+            Save
+          </button>
+          <button class="storage-delete-btn px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition" data-id="${s.id}">
+            Delete
+          </button>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  async function loadStorages() {
+    try {
+      const data = await adminAPI.listStorages();
+      renderStorageList((data && data.storages) ? data.storages : []);
+      if (storageMsg) storageMsg.textContent = '';
+    } catch (e) {
+      if (storageMsg) storageMsg.textContent = e?.message || 'Failed to load storages.';
+    }
+  }
+
+  async function loadStoragesForDropdowns() {
+    try {
+      const data = await itemsAPI.getStorages();
+      const storages = (data?.storages || []).map((s) => s?.name).filter((v) => typeof v === 'string' && v.trim());
+      allStorages = uniqueSorted(storages);
+    } catch {
+      allStorages = [];
+    }
+  }
+
+  function applyFilters(items) {
+    const s = (searchEl?.value || '').trim().toLowerCase();
+    const cat = categoryEl?.value || '';
+    const loc = locationEl?.value || '';
+    return items.filter((it) => {
+      if (cat && it.category !== cat) return false;
+      if (loc && it.location !== loc) return false;
+      if (s) {
+        const hay = `${it.name || ''} ${it.description || ''}`.toLowerCase();
+        if (!hay.includes(s)) return false;
+      }
+      return true;
+    });
+  }
+
+  function optionList(values, selected, placeholder) {
+    const safeSelected = selected ?? '';
+    const opts = [];
+    if (placeholder) opts.push(`<option value="">${placeholder}</option>`);
+
+    const set = new Set(values);
+    // Ensure current value is selectable even if not in list
+    if (safeSelected && !set.has(safeSelected)) {
+      opts.push(`<option value="${String(safeSelected).replace(/"/g, '&quot;')}" selected>${safeSelected} (current)</option>`);
+    }
+
+    for (const v of values) {
+      const s = String(v);
+      const sel = s === safeSelected ? 'selected' : '';
+      opts.push(`<option value="${s.replace(/"/g, '&quot;')}" ${sel}>${s}</option>`);
+    }
+    return opts.join('');
+  }
+
+  function render(items) {
+    if (!itemsEl) return;
+    itemsEl.innerHTML = items.map((it) => `
+      <section class="bg-white rounded-lg shadow p-4 sm:p-6">
+        <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+          <div class="min-w-0 flex-1">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+              <h2 class="text-lg font-semibold text-gray-900 truncate">${it.name || 'Unnamed'}</h2>
+              </div>
+              <p class="text-sm text-gray-600 mt-1 break-words">${it.description || ''}</p>
+              
+              <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 mt-4">
+                <div>
+                  <label class="block text-xs font-medium text-gray-600 mb-1">Name</label>
+                  <input class="field w-full px-3 py-2 border border-gray-300 rounded-lg" data-id="${it.id}" data-field="name" value="${String(it.name || '').replace(/"/g, '&quot;')}" />
+                  </div>
+                  <div>
+                    <label class="block text-xs font-medium text-gray-600 mb-1">Category</label>
+                    <select class="field w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" data-id="${it.id}" data-field="category">
+                      ${optionList(allCategories, it.category, 'Select category')}
+                      </select>
+                      </div>
+                      <div>
+                        <label class="block text-xs font-medium text-gray-600 mb-1">Location</label>
+                        <select class="field w-full px-3 py-2 border border-gray-300 rounded-lg bg-white" data-id="${it.id}" data-field="location">
+                          ${optionList(allStorages, it.location, 'Select location')}
+                          </select>
+                          </div>
+                          <div class="sm:col-span-2 lg:col-span-3">
+                            <label class="block text-xs font-medium text-gray-600 mb-1">Description</label>
+                            <textarea class="field w-full px-3 py-2 border border-gray-300 rounded-lg" data-id="${it.id}" data-field="description" rows="3">${it.description || ''}</textarea>
+                            </div>
+                            <div>
+                              <label class="block text-xs font-medium text-gray-600 mb-1">Quantity</label>
+                              <input type="number" min="1" class="field w-full px-3 py-2 border border-gray-300 rounded-lg" data-id="${it.id}" data-field="quantity" value="${Number(it.quantity || 1)}" />
+                              </div>
+                              </div>
+                              <div class="flex gap-2 mt-4">
+                                <button class="save-btn px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm" data-id="${it.id}">Save</button>
+                                <button class="delete-btn px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm" data-id="${it.id}">Delete</button>
+                              </div>
+          </div>
+        </div>
+      </section>
+    `).join('');
+  }
+
+  async function ensureAdmin() {
+    const me = await authAPI.getMe();
+    if (me?.user?.role !== 'admin') {
+      window.location.href = '/';
+      return false;
+    }
+    return true;
+  }
+
+  async function load() {
+    if (!(await ensureAdmin())) return;
+    try {
+      clearError();
+      loading?.classList.remove('hidden');
+      itemsEl?.classList.add('hidden');
+
+      const data = await itemsAPI.getAll();
+      allItems = data.items || [];
+
+      allCategories = uniqueSorted(allItems.map(i => i.category));
+      await loadStoragesForDropdowns();
+
+      rebuildSelect(categoryEl, allCategories, 'All Categories');
+      rebuildSelect(locationEl, allStorages.length ? allStorages : uniqueSorted(allItems.map(i => i.location)), 'All Locations');
+
+      const filtered = applyFilters(allItems);
+      render(filtered);
+
+      loading?.classList.add('hidden');
+      itemsEl?.classList.remove('hidden');
+    } catch (e) {
+      loading?.classList.add('hidden');
+      setError(e?.message || 'Failed to load items.');
+    }
+  }
+
+  function scheduleRerender() {
+    clearTimeout(filterTimeout);
+    filterTimeout = setTimeout(() => {
+      render(applyFilters(allItems));
+    }, 200);
+  }
+
+  searchEl?.addEventListener('input', scheduleRerender);
+  categoryEl?.addEventListener('change', scheduleRerender);
+  locationEl?.addEventListener('change', scheduleRerender);
+
+  document.getElementById('items')?.addEventListener('click', async (ev) => {
+    const t = ev.target;
+    const id = t?.getAttribute?.('data-id');
+    if (!id) return;
+
+    try {
+      if (t.classList.contains('delete-btn')) {
+        const ok = await window.uiConfirm({
+          title: 'Delete item',
+          message: 'Delete this item permanently?',
+          okText: 'Delete',
+          danger: true,
+        });
+        if (!ok) return;
+        await itemsAPI.delete(id);
+        window.uiToast?.('Item deleted.', 'success');
+        if (msg) msg.textContent = 'Item deleted.';
+        await load();
+      }
+      if (t.classList.contains('save-btn')) {
+        const fields = Array.from(document.querySelectorAll(`.field[data-id="${id}"]`));
+        const payload = {};
+        for (const f of fields) {
+          const key = f.getAttribute('data-field');
+          if (!key) continue;
+          payload[key] = (f.value ?? '').toString();
+        }
+        if (payload.quantity) payload.quantity = Number(payload.quantity) || 1;
+
+        await itemsAPI.update(id, payload);
+        window.uiToast?.('Item saved.', 'success');
+        if (msg) msg.textContent = 'Item saved.';
+        await load();
+      }
+    } catch (e) {
+      if (msg) msg.textContent = e?.message || 'Action failed.';
+      if (storageMsg && String(e?.message || '').toLowerCase().includes('storage')) storageMsg.textContent = e?.message || 'Action failed.';
+      window.uiToast?.(e?.message || 'Action failed.', 'error');
+    }
+  });
+
+  storageListEl?.addEventListener('click', async (ev) => {
+    const t = ev.target;
+    const id = t?.getAttribute?.('data-id');
+    if (!id) return;
+
+    try {
+      if (t.classList.contains('storage-save-btn')) {
+        const input = document.querySelector(`.storage-name-input[data-id="${id}"]`);
+        const name = (input?.value || '').trim();
+        if (!name) throw new Error('Name cannot be empty.');
+        await adminAPI.updateStorage(id, name);
+        if (storageMsg) storageMsg.textContent = 'Storage updated.';
+        window.uiToast?.('Storage updated.', 'success');
+        await loadStorages();
+        await loadStoragesForDropdowns();
+        scheduleRerender();
+      }
+
+      if (t.classList.contains('storage-delete-btn')) {
+        const ok = await window.uiConfirm({
+          title: 'Delete storage',
+          message: 'Delete this storage? Items in it will move to Unassigned.',
+          okText: 'Delete',
+          danger: true,
+        });
+        if (!ok) return;
+        await adminAPI.deleteStorage(id);
+        if (storageMsg) storageMsg.textContent = 'Storage deleted.';
+        window.uiToast?.('Storage deleted.', 'success');
+        await loadStorages();
+        await loadStoragesForDropdowns();
+        scheduleRerender();
+      }
+    } catch (e) {
+      if (storageMsg) storageMsg.textContent = e?.message || 'Action failed.';
+      window.uiToast?.(e?.message || 'Action failed.', 'error');
+    }
+  });
+
+  async function moveAllToBasement() {
+    try {
+      const ok = await window.uiConfirm({
+        title: 'Move all items',
+        message: 'Move ALL items to Basement?',
+        okText: 'Move',
+        danger: false,
+      });
+      if (!ok) return;
+      const res = await adminAPI.setAllItemsToBasement();
+      if (msg) msg.textContent = `Done. Updated ${res.updatedCount || 0} items.`;
+      if (basementMsg) basementMsg.textContent = `Done. Updated ${res.updatedCount || 0} items.`;
+      window.uiToast?.(`Moved ${res.updatedCount || 0} items to Basement.`, 'success');
+      await load();
+    } catch (e) {
+      if (msg) msg.textContent = e?.message || 'Failed.';
+      if (basementMsg) basementMsg.textContent = e?.message || 'Failed.';
+      window.uiToast?.(e?.message || 'Failed.', 'error');
+    }
+  }
+
+  document.getElementById('moveBasementBtn')?.addEventListener('click', moveAllToBasement);
+  document.getElementById('moveBasementBtn2')?.addEventListener('click', moveAllToBasement);
+
+  document.getElementById('addStorageBtn')?.addEventListener('click', async () => {
+    const input = document.getElementById('newStorageName');
+    try {
+      const name = (input?.value || '').trim();
+      if (!name) throw new Error('Enter a storage name.');
+      await adminAPI.createStorage(name);
+      if (input) input.value = '';
+      if (storageMsg) storageMsg.textContent = 'Storage added.';
+      window.uiToast?.('Storage added.', 'success');
+      await loadStorages();
+      await loadStoragesForDropdowns();
+      scheduleRerender();
+    } catch (e) {
+      if (storageMsg) storageMsg.textContent = e?.message || 'Failed to add storage.';
+      window.uiToast?.(e?.message || 'Failed to add storage.', 'error');
+    }
+  });
+
+  loadStorages();
+  load();
+</script>
+

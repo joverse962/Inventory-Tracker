@@ -3,7 +3,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 ---
 
 <BaseLayout title="Profile - Inventory Tracker">
-  <div class="p-6 max-w-4xl mx-auto">
+  <div class="p-4 sm:p-6 max-w-4xl mx-auto">
     <!-- Header -->
     <div class="flex justify-between items-center mb-6">
       <h1 class="text-3xl font-bold text-gray-900">👤 My Profile</h1>
@@ -216,41 +216,44 @@ import BaseLayout from '../layouts/BaseLayout.astro';
             const actionClass = isBorrowed ? 'bg-yellow-100 text-yellow-800' : 'bg-blue-100 text-blue-800';
             
             return `
-              <div class="flex items-center justify-between p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
-                <div class="flex items-center gap-4">
+              <div class="p-4 bg-gray-50 rounded-lg hover:bg-gray-100 transition">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                  <div class="flex items-start gap-3 min-w-0">
                   ${item?.image ? `
-                    <img src="${item.image}" alt="${item?.name || 'Unknown'}" class="w-16 h-16 object-cover rounded" />
+                    <img src="${item.image}" alt="${item?.name || 'Unknown'}" class="w-14 h-14 sm:w-16 sm:h-16 object-cover rounded flex-shrink-0" />
                   ` : `
-                    <div class="w-16 h-16 bg-gray-200 rounded flex items-center justify-center">
+                    <div class="w-14 h-14 sm:w-16 sm:h-16 bg-gray-200 rounded flex items-center justify-center flex-shrink-0">
                       <svg class="w-8 h-8 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7"></path>
                       </svg>
                     </div>
                   `}
-                  <div>
-                    <h3 class="font-semibold text-gray-900">${item?.name || 'Unknown Item'}</h3>
-                    <p class="text-sm text-gray-600">${item?.category || 'Unknown'} • ${item?.location || 'Unknown'}</p>
+                  <div class="min-w-0">
+                    <h3 class="font-semibold text-gray-900 truncate">${item?.name || 'Unknown Item'}</h3>
+                    <p class="text-sm text-gray-600 truncate">${item?.category || 'Unknown'} • ${item?.location || 'Unknown'}</p>
                     <p class="text-xs text-gray-500">${actionType}: ${new Date(session.startDate).toLocaleDateString()} (${session.quantity} units)</p>
-                    <span class="inline-block px-2 py-1 text-xs font-medium rounded-full ${actionClass}">
+                    <span class="inline-block mt-1 px-2 py-1 text-xs font-medium rounded-full ${actionClass}">
                       ${actionType}
                     </span>
                   </div>
-                </div>
-                <div class="flex gap-2">
-                  <button
-                    class="return-partial-btn bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium"
-                    data-id="${session.itemId}"
-                    data-max="${session.quantity}"
-                  >
-                    Return Some
-                  </button>
-                  <button
-                    class="return-all-btn bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition text-sm font-medium"
-                    data-id="${session.itemId}"
-                    data-quantity="${session.quantity}"
-                  >
-                    Return All
-                  </button>
+                  </div>
+
+                  <div class="grid grid-cols-2 sm:flex sm:justify-end gap-2 w-full sm:w-auto">
+                    <button
+                      class="return-partial-btn w-full bg-blue-600 text-white px-3 py-2 rounded-lg hover:bg-blue-700 transition text-sm font-medium"
+                      data-id="${session.itemId}"
+                      data-max="${session.quantity}"
+                    >
+                      Return Some
+                    </button>
+                    <button
+                      class="return-all-btn w-full bg-green-600 text-white px-3 py-2 rounded-lg hover:bg-green-700 transition text-sm font-medium"
+                      data-id="${session.itemId}"
+                      data-quantity="${session.quantity}"
+                    >
+                      Return All
+                    </button>
+                  </div>
                 </div>
               </div>
             `;
@@ -265,9 +268,10 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 
               try {
                 await itemsAPI.return(itemId, quantity);
+                window.uiToast?.('Returned.', 'success');
                 loadProfile(); // Reload profile
               } catch (error: any) {
-                alert(error.message || 'Failed to return item');
+                window.uiToast?.(error.message || 'Failed to return item', 'error');
               }
             });
           });
@@ -284,7 +288,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
               ) || [];
 
               if (!item || userInstances.length === 0) {
-                alert('No available units found for return.');
+                window.uiToast?.('No units found for return.', 'warn');
                 return;
               }
 
@@ -328,16 +332,17 @@ import BaseLayout from '../layouts/BaseLayout.astro';
                 const selected = Array.from(returnModal.querySelectorAll('input[name="returnInstance"]:checked')) as HTMLInputElement[];
                 const quantity = selected.length;
                 if (quantity === 0) {
-                  alert('Please select at least one unit to return.');
+                  window.uiToast?.('Select at least one unit.', 'warn');
                   return;
                 }
 
                 try {
                   await itemsAPI.return(itemId, quantity);
+                  window.uiToast?.('Returned selected units.', 'success');
                   returnModal.remove();
                   loadProfile();
                 } catch (error: any) {
-                  alert(error.message || 'Failed to return item');
+                  window.uiToast?.(error.message || 'Failed to return item', 'error');
                 }
               };
 

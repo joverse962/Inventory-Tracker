@@ -7,6 +7,36 @@ import { checkAndSendReminders } from '../utils/reminder';
 
 const router = Router();
 
+function hasStorageModel(client: any): boolean {
+  return !!client?.storage && typeof client.storage.findMany === 'function';
+}
+
+// List storages (for item create/filter UI)
+router.get('/storages', authMiddleware, async (_req: AuthRequest, res) => {
+  try {
+    if (hasStorageModel(prisma)) {
+      const storages = await (prisma as any).storage.findMany({ orderBy: { name: 'asc' } });
+      return res.status(200).json({ storages });
+    }
+
+    // Fallback (pre-migration): derive storages from distinct Item.location values
+    const rows = await prisma.item.findMany({
+      select: { location: true },
+      distinct: ['location'],
+      orderBy: { location: 'asc' },
+    });
+    const storages = rows
+      .map((r) => (r.location || '').trim())
+      .filter(Boolean)
+      .map((name) => ({ id: name, name }));
+
+    return res.status(200).json({ storages });
+  } catch (error: any) {
+    console.error('List storages error:', error);
+    return res.status(500).json({ error: 'Failed to list storages' });
+  }
+});
+
 // List all items with their instances
 router.get('/', authMiddleware, async (req: AuthRequest, res) => {
   try {
@@ -20,7 +50,12 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
       where.category = category;
     }
     if (location) {
-      where.location = location;
+      // Support filtering by either legacy location string or new storage name
+      where.OR = [
+        ...(where.OR || []),
+        { location: location },
+        ...(hasStorageModel(prisma) ? [{ storage: { is: { name: location } } }] : []),
+      ];
     }
     if (search) {
       where.OR = [
@@ -29,23 +64,29 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
       ];
     }
 
-    const items = await prisma.item.findMany({
-      where,
-      include: {
-        createdBy: {
-          select: { id: true, name: true, email: true },
-        },
-        instances: {
-          include: {
-            borrowedBy: {
-              select: { id: true, name: true, email: true },
-            },
-            takenBy: {
-              select: { id: true, name: true, email: true },
-            },
+    const include: any = {
+      createdBy: {
+        select: { id: true, name: true, email: true },
+      },
+      instances: {
+        include: {
+          borrowedBy: {
+            select: { id: true, name: true, email: true },
+          },
+          takenBy: {
+            select: { id: true, name: true, email: true },
           },
         },
       },
+    };
+
+    if (hasStorageModel(prisma)) {
+      include.storage = { select: { id: true, name: true } };
+    }
+
+    const items = await prisma.item.findMany({
+      where,
+      include,
     });
 
     // Transform to include availability and instance info
@@ -60,6 +101,8 @@ router.get('/', authMiddleware, async (req: AuthRequest, res) => {
 
       return {
         ...item,
+        // Prefer storage name when present; keep location for backward compatibility
+        location: (item as any).storage?.name || item.location,
         availableQuantity: availableInstances.length,
         borrowedQuantity: borrowedInstances.length,
         takenQuantity: takenInstances.length,
@@ -145,14 +188,25 @@ router.get('/history/me', authMiddleware, async (req: AuthRequest, res) => {
 // Create item
 router.post('/', authMiddleware, async (req: AuthRequest, res) => {
   try {
-    const { name, description, category, location, image, components, quantity } = req.body;
+    const { name, description, category, location, storageId, image, components, quantity } = req.body;
 
     // Validation
-    if (!name || !description || !category || !location) {
+    if (!name || !description || !category || !(location || storageId)) {
       return res.status(400).json({ error: 'Name, description, category, and location are required' });
     }
     if (typeof image === 'string' && image.startsWith('data:')) {
       return res.status(400).json({ error: 'Data URL images are not allowed. Upload the file and send its URL instead.' });
+    }
+
+    // If storageId is provided (post-migration), sync legacy location string to storage name
+    let resolvedLocation = location;
+    if (storageId) {
+      if (!hasStorageModel(prisma)) {
+        return res.status(400).json({ error: 'Storage feature not enabled yet. Run database migrations.' });
+      }
+      const storage = await (prisma as any).storage.findUnique({ where: { id: storageId } });
+      if (!storage) return res.status(400).json({ error: 'Invalid storageId' });
+      resolvedLocation = storage.name;
     }
 
     const itemQuantity = quantity || 1;
@@ -162,7 +216,8 @@ router.post('/', authMiddleware, async (req: AuthRequest, res) => {
         name,
         description,
         category,
-        location,
+        location: resolvedLocation,
+        ...(hasStorageModel(prisma) ? { storageId: storageId || undefined } : {}),
         image,
         components,
         quantity: itemQuantity,
@@ -208,23 +263,26 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
 
-    const item = await prisma.item.findUnique({
-      where: { id },
-      include: {
-        createdBy: {
-          select: { id: true, name: true, email: true },
-        },
-        instances: {
-          include: {
-            borrowedBy: {
-              select: { id: true, name: true, email: true },
-            },
-            takenBy: {
-              select: { id: true, name: true, email: true },
-            },
+    const include: any = {
+      createdBy: {
+        select: { id: true, name: true, email: true },
+      },
+      instances: {
+        include: {
+          borrowedBy: {
+            select: { id: true, name: true, email: true },
+          },
+          takenBy: {
+            select: { id: true, name: true, email: true },
           },
         },
       },
+    };
+    if (hasStorageModel(prisma)) include.storage = { select: { id: true, name: true } };
+
+    const item = await prisma.item.findUnique({
+      where: { id },
+      include,
     });
 
     if (!item) {
@@ -238,6 +296,7 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
 
     const transformedItem = {
       ...item,
+      location: (item as any).storage?.name || item.location,
       availableQuantity: availableInstances.length,
       borrowedQuantity: borrowedInstances.length,
       takenQuantity: takenInstances.length,
@@ -255,49 +314,120 @@ router.get('/:id', authMiddleware, async (req: AuthRequest, res) => {
 router.put('/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
-    const { name, description, category, location, status, quantity, image, components } = req.body;
+    const { name, description, category, location, storageId, status, quantity, image, components } = req.body;
     if (typeof image === 'string' && image.startsWith('data:')) {
       return res.status(400).json({ error: 'Data URL images are not allowed. Upload the file and send its URL instead.' });
     }
 
-    const existingItem = await prisma.item.findUnique({ where: { id } });
+    const existingItem = await prisma.item.findUnique({
+      where: { id },
+      include: { instances: true },
+    });
     if (!existingItem) {
       return res.status(404).json({ error: 'Item not found' });
     }
 
-    const updatedAvailableQuantity = typeof quantity === 'number'
-      ? Math.max(0, Math.min(quantity, existingItem.availableQuantity + (quantity - existingItem.quantity)))
-      : existingItem.availableQuantity;
+    // Authorization: only admins or the creator can edit items
+    if (req.userRole !== 'admin' && existingItem.createdById !== req.userId) {
+      return res.status(403).json({ error: 'Not allowed to update this item' });
+    }
 
-    const item = await prisma.item.update({
-      where: { id },
-      data: {
-        name,
-        description,
-        category,
-        location,
-        status,
-        quantity,
-        availableQuantity: updatedAvailableQuantity,
-        image,
-        components,
-      },
-      include: {
-        createdBy: {
-          select: { id: true, name: true, email: true },
+    let resolvedLocation = location;
+    let resolvedStorageId = storageId;
+    if (storageId) {
+      if (!hasStorageModel(prisma)) {
+        return res.status(400).json({ error: 'Storage feature not enabled yet. Run database migrations.' });
+      }
+      const storage = await (prisma as any).storage.findUnique({ where: { id: storageId } });
+      if (!storage) return res.status(400).json({ error: 'Invalid storageId' });
+      resolvedLocation = storage.name;
+      resolvedStorageId = storage.id;
+    } else if (typeof location === 'string' && location.trim()) {
+      // If a raw location string is supplied, ensure there's a matching Storage row and link it.
+      if (hasStorageModel(prisma)) {
+        const storage = await (prisma as any).storage.upsert({
+          where: { name: location.trim() },
+          create: { name: location.trim() },
+          update: {},
+        });
+        resolvedLocation = storage.name;
+        resolvedStorageId = storage.id;
+      } else {
+        resolvedLocation = location.trim();
+        resolvedStorageId = undefined;
+      }
+    }
+
+    const requestedQuantity = typeof quantity === 'number' ? quantity : undefined;
+    if (requestedQuantity !== undefined && (!Number.isFinite(requestedQuantity) || requestedQuantity < 1)) {
+      return res.status(400).json({ error: 'Quantity must be a number >= 1' });
+    }
+
+    const updated = await prisma.$transaction(async (tx) => {
+      // Adjust item instances if quantity changes
+      if (requestedQuantity !== undefined) {
+        const currentCount = existingItem.instances.length;
+        if (requestedQuantity > currentCount) {
+          const toCreate = requestedQuantity - currentCount;
+          await tx.itemInstance.createMany({
+            data: Array.from({ length: toCreate }, () => ({
+              itemId: id,
+              availability: 'available',
+              condition: 'good',
+            })),
+          });
+        } else if (requestedQuantity < currentCount) {
+          const toRemove = currentCount - requestedQuantity;
+          const removable = existingItem.instances.filter((i) => i.availability === 'available').slice(0, toRemove);
+          if (removable.length < toRemove) {
+            throw new Error('Cannot reduce quantity below units currently borrowed/taken.');
+          }
+          await tx.itemInstance.deleteMany({ where: { id: { in: removable.map((i) => i.id) } } });
+        }
+      }
+
+      const data: any = {
+        ...(typeof name === 'string' ? { name } : {}),
+        ...(typeof description === 'string' ? { description } : {}),
+        ...(typeof category === 'string' ? { category } : {}),
+        ...(typeof resolvedLocation === 'string' ? { location: resolvedLocation } : {}),
+        ...(typeof status === 'string' ? { status } : {}),
+        ...(requestedQuantity !== undefined ? { quantity: requestedQuantity } : {}),
+        ...(typeof image === 'string' ? { image } : {}),
+        ...(components !== undefined ? { components } : {}),
+      };
+
+      if (hasStorageModel(prisma)) {
+        // Use relation connect/disconnect so it works even if storageId scalar isn't available in this client.
+        if (resolvedStorageId) {
+          data.storage = { connect: { id: resolvedStorageId } };
+        } else if (storageId === null) {
+          data.storage = { disconnect: true };
+        }
+      }
+
+      return tx.item.update({
+        where: { id },
+        data,
+        include: {
+          createdBy: { select: { id: true, name: true, email: true } },
+          instances: {
+            include: {
+              borrowedBy: { select: { id: true, name: true, email: true } },
+              takenBy: { select: { id: true, name: true, email: true } },
+            },
+          },
+          ...(hasStorageModel(prisma) ? { storage: { select: { id: true, name: true } } } : {}),
         },
-        borrowedBy: {
-          select: { id: true, name: true, email: true },
-        },
-        takenBy: {
-          select: { id: true, name: true, email: true },
-        },
-      },
+      });
     });
 
-    return res.status(200).json({ item });
+    return res.status(200).json({ item: { ...updated, location: (updated as any).storage?.name || updated.location } });
   } catch (error: any) {
     console.error('Update item error:', error);
+    if (String(error?.message || '').includes('Cannot reduce quantity')) {
+      return res.status(400).json({ error: error.message });
+    }
     if (error.code === 'P2025') {
       return res.status(404).json({ error: 'Item not found' });
     }
@@ -310,9 +440,15 @@ router.delete('/:id', authMiddleware, async (req: AuthRequest, res) => {
   try {
     const { id } = req.params;
 
-    await prisma.item.delete({
-      where: { id },
-    });
+    const existing = await prisma.item.findUnique({ where: { id } });
+    if (!existing) return res.status(404).json({ error: 'Item not found' });
+
+    // Authorization: only admins or the creator can delete items
+    if (req.userRole !== 'admin' && existing.createdById !== req.userId) {
+      return res.status(403).json({ error: 'Not allowed to delete this item' });
+    }
+
+    await prisma.item.delete({ where: { id } });
 
     return res.status(200).json({ message: 'Item deleted successfully' });
   } catch (error: any) {

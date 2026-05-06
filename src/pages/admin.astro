@@ -3,10 +3,20 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 ---
 
 <BaseLayout title="Admin Dashboard - Inventory Tracker">
-  <div class="p-6 max-w-7xl mx-auto">
+  <div class="p-4 sm:p-6 max-w-7xl mx-auto">
     <div class="mb-6">
-      <h1 class="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
-      <p class="text-gray-600 mt-1">Users, current borrowed/taken items, and usage history.</p>
+      <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+        <div class="min-w-0">
+          <h1 class="text-3xl font-bold text-gray-900">Admin Dashboard</h1>
+          <p class="text-gray-600 mt-1">Users, current borrowed/taken items, and usage history.</p>
+        </div>
+        <a
+          href="/items-dashboard"
+          class="inline-flex items-center justify-center bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition"
+        >
+          Open Items Dashboard
+        </a>
+      </div>
     </div>
 
     <div id="loadingState" class="text-center py-12">

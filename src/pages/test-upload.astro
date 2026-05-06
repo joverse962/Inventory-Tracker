@@ -42,7 +42,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
     
     const file = fileInput.files?.[0];
     if (!file) {
-      alert('Please select a file');
+      window.uiToast?.('Please select a file.', 'warn');
       return;
     }
     
@@ -80,7 +80,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
       const createResult = await itemsAPI.create(testItemData);
       console.log('Item created:', createResult);
       
-      alert('Test successful! Check console for details. Item ID: ' + createResult.item.id);
+      window.uiToast?.('Test successful! Item created.', 'success');
       
     } catch (error: any) {
       console.error('Test failed:', error);
@@ -89,6 +89,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
         result.classList.remove('hidden');
         result.classList.add('bg-red-100');
       }
+      window.uiToast?.(error.message || 'Test failed.', 'error');
     }
   });
 </script>

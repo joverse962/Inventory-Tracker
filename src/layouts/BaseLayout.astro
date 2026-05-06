@@ -9,14 +9,156 @@ import '../styles/global.css';
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Inventory Tracker</title>
   </head>
-  <body class="flex min-h-screen overflow-x-hidden">
-    <Sidebar />
-    <div class="flex-1 flex flex-col">
-      <Navbar />
-      <main class="p-6 flex-1">
-        <slot />
-      </main>
+  <body class="min-h-screen overflow-x-hidden bg-gray-100">
+    <div class="min-h-screen md:flex" x-data="{ sidebarOpen: false }">
+      <!-- Mobile overlay -->
+      <div
+        class="fixed inset-0 bg-black/50 z-40 md:hidden"
+        x-show="sidebarOpen"
+        x-transition.opacity
+        @click="sidebarOpen = false"
+        style="display: none;"
+      ></div>
+
+      <!-- Sidebar (drawer on mobile, static on desktop) -->
+      <div
+        class="fixed inset-y-0 left-0 z-50 w-72 max-w-[85vw] transform transition-transform duration-200 md:static md:translate-x-0 md:w-64"
+        :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full'"
+      >
+        <Sidebar />
+      </div>
+
+      <!-- Page content -->
+      <div class="flex-1 flex flex-col min-w-0 md:ml-0">
+        <Navbar />
+        <main class="flex-1 p-4 sm:p-6 min-w-0">
+          <slot />
+        </main>
+      </div>
     </div>
+
+    <!-- Toast notifications -->
+    <div
+      id="appToast"
+      class="fixed bottom-4 left-4 right-4 sm:left-auto sm:right-6 sm:bottom-6 z-[100] hidden sm:w-[420px]"
+    >
+      <div id="appToastInner" class="rounded-lg shadow-lg border px-4 py-3 bg-white text-gray-900"></div>
+    </div>
+
+    <!-- Confirm modal -->
+    <div
+      id="appConfirm"
+      class="fixed inset-0 z-[110] hidden items-center justify-center p-4"
+      aria-hidden="true"
+    >
+      <div class="absolute inset-0 bg-black/50"></div>
+      <div class="relative bg-white w-full max-w-md rounded-lg shadow-2xl p-5">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0">
+            <h3 id="appConfirmTitle" class="text-lg font-semibold text-gray-900">Confirm</h3>
+            <p id="appConfirmMessage" class="text-sm text-gray-600 mt-1"></p>
+          </div>
+          <button id="appConfirmX" class="text-gray-400 hover:text-gray-600" aria-label="Close">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="mt-5 flex gap-2 justify-end">
+          <button
+            id="appConfirmCancel"
+            class="px-4 py-2 rounded-lg bg-gray-200 text-gray-800 hover:bg-gray-300 transition"
+          >
+            Cancel
+          </button>
+          <button
+            id="appConfirmOk"
+            class="px-4 py-2 rounded-lg bg-red-600 text-white hover:bg-red-700 transition"
+          >
+            Confirm
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <script>
+      // Global UI helpers (replace alert/confirm)
+      (function () {
+        const toast = document.getElementById('appToast');
+        const toastInner = document.getElementById('appToastInner');
+        let toastTimer;
+
+        window.uiToast = function (message, variant = 'info') {
+          if (!toast || !toastInner) return;
+          toastInner.textContent = message || '';
+          toastInner.className = 'rounded-lg shadow-lg border px-4 py-3 bg-white text-gray-900';
+          if (variant === 'success') toastInner.className += ' border-green-200 bg-green-50 text-green-900';
+          if (variant === 'error') toastInner.className += ' border-red-200 bg-red-50 text-red-900';
+          if (variant === 'warn') toastInner.className += ' border-yellow-200 bg-yellow-50 text-yellow-900';
+
+          toast.classList.remove('hidden');
+          clearTimeout(toastTimer);
+          toastTimer = setTimeout(() => toast.classList.add('hidden'), 3500);
+        };
+
+        const confirmEl = document.getElementById('appConfirm');
+        const titleEl = document.getElementById('appConfirmTitle');
+        const msgEl = document.getElementById('appConfirmMessage');
+        const okBtn = document.getElementById('appConfirmOk');
+        const cancelBtn = document.getElementById('appConfirmCancel');
+        const xBtn = document.getElementById('appConfirmX');
+
+        function hideConfirm(resolve, value) {
+          if (!confirmEl) return resolve(value);
+          confirmEl.classList.add('hidden');
+          confirmEl.classList.remove('flex');
+          resolve(value);
+        }
+
+        window.uiConfirm = function (opts) {
+          const title = opts?.title || 'Confirm';
+          const message = opts?.message || 'Are you sure?';
+          const danger = opts?.danger !== false;
+          const okText = opts?.okText || 'Confirm';
+          const cancelText = opts?.cancelText || 'Cancel';
+
+          return new Promise((resolve) => {
+            if (!confirmEl || !titleEl || !msgEl || !okBtn || !cancelBtn || !xBtn) {
+              resolve(true);
+              return;
+            }
+
+            titleEl.textContent = title;
+            msgEl.textContent = message;
+            okBtn.textContent = okText;
+            cancelBtn.textContent = cancelText;
+            okBtn.className = 'px-4 py-2 rounded-lg text-white transition ' + (danger ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700');
+
+            const onOk = () => cleanup(() => hideConfirm(resolve, true));
+            const onCancel = () => cleanup(() => hideConfirm(resolve, false));
+            const onBackdrop = (e) => {
+              if (e.target === confirmEl) onCancel();
+            };
+
+            function cleanup(next) {
+              okBtn.removeEventListener('click', onOk);
+              cancelBtn.removeEventListener('click', onCancel);
+              xBtn.removeEventListener('click', onCancel);
+              confirmEl.removeEventListener('click', onBackdrop);
+              next();
+            }
+
+            okBtn.addEventListener('click', onOk);
+            cancelBtn.addEventListener('click', onCancel);
+            xBtn.addEventListener('click', onCancel);
+            confirmEl.addEventListener('click', onBackdrop);
+
+            confirmEl.classList.remove('hidden');
+            confirmEl.classList.add('flex');
+          });
+        };
+      })();
+    </script>
 
     <!-- Alpine.js for interactive components -->
     <script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.x.x/dist/cdn.min.js"></script>

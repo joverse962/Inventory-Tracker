@@ -98,6 +98,16 @@ export const authAPI = {
 
 export const adminAPI = {
   getDashboard: () => apiRequest('/admin/dashboard', { method: 'GET' }),
+  listStorages: () => apiRequest('/admin/storages', { method: 'GET' }),
+  createStorage: (name: string) =>
+    apiRequest('/admin/storages', { method: 'POST', body: JSON.stringify({ name }) }),
+  updateStorage: (id: string, name: string) =>
+    apiRequest(`/admin/storages/${id}`, { method: 'PUT', body: JSON.stringify({ name }) }),
+  deleteStorage: (id: string) =>
+    apiRequest(`/admin/storages/${id}`, { method: 'DELETE' }),
+
+  setAllItemsToBasement: () =>
+    apiRequest('/admin/items/set-basement', { method: 'POST' }),
 };
 
 // Items API
@@ -158,6 +168,8 @@ export const itemsAPI = {
   getByBarcode: async (_barcode: string) => {
     throw new Error('Barcode lookup endpoint is not available in the current backend.');
   },
+
+  getStorages: () => apiRequest('/items/storages', { method: 'GET' }),
 };
 
 // Upload API
